@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getPokemonList, getPokemonDetails } from './services/pokemonService';
 import PokemonCard from './components/PokemonCard';
 import PokemonModal from './components/PokemonModal';
 
-const LIMIT = 18;
-
 function App() {
+  const gridContainerRef = useRef(null);
+
+  const [limit, setLimit] = useState(
+    typeof window !== 'undefined' && window.innerWidth >= 1024 ? 21 : 12
+  );
   const [pokemonList, setPokemonList] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -15,24 +18,57 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Sincronizar inputPage cada vez que page cambie
-  useEffect(() => {
-    setInputPage(page);
-  }, [page]);
-
   // Estados para búsqueda global
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchNotFound, setSearchNotFound] = useState(false);
 
-  // Carga inicial y por paginación (cuando no hay búsqueda activa)
+  // Ajuste del límite de tarjetas por pantalla (21 en escritorio: 7 cols x 3 rows)
+  const updateLimitFromContainer = () => {
+    if (typeof window === 'undefined') return;
+
+    if (window.innerWidth < 768) {
+      setLimit(12);
+      return;
+    }
+
+    if (window.innerWidth < 1024) {
+      setLimit(15);
+      return;
+    }
+
+    // Escritorio (>= 1024): 7 columnas x 3 filas = 21 Pokémon exactos
+    setLimit(21);
+  };
+
+  // Observador de tamaño sobre el contenedor real
+  useEffect(() => {
+    const container = gridContainerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver(() => {
+      updateLimitFromContainer();
+    });
+
+    observer.observe(container);
+    updateLimitFromContainer();
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Sincronizar inputPage cada vez que page cambie
+  useEffect(() => {
+    setInputPage(page);
+  }, [page]);
+
+  // Carga inicial y por paginación (reactiva a page y limit)
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const offset = (page - 1) * LIMIT;
-        const data = await getPokemonList(LIMIT, offset);
+        const offset = (page - 1) * limit;
+        const data = await getPokemonList(limit, offset);
         setPokemonList(data.results || []);
         setTotalCount(data.count || 0);
       } catch (err) {
@@ -42,7 +78,15 @@ function App() {
       }
     };
     loadData();
-  }, [page]);
+  }, [page, limit]);
+
+  // Asegurar que page no quede fuera de rango tras recalcular limit
+  useEffect(() => {
+    const maxPages = Math.ceil(totalCount / limit) || 1;
+    if (page > maxPages) {
+      setPage(maxPages);
+    }
+  }, [limit, totalCount, page]);
 
   // Búsqueda global con Debounce
   useEffect(() => {
@@ -80,7 +124,7 @@ function App() {
   }, [search]);
 
   const isSearchActive = search.trim() !== '';
-  const totalPages = Math.ceil(totalCount / LIMIT) || 1;
+  const totalPages = Math.ceil(totalCount / limit) || 1;
 
   const handlePageCommit = () => {
     const parsed = parseInt(inputPage, 10);
@@ -126,15 +170,15 @@ function App() {
     <div
       style={{
         width: '100%',
-        minHeight: '100vh',
-        margin: 0,
-        padding: 0,
+        height: '100vh',
+        maxHeight: '100vh',
+        overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
+        justifyContent: 'space-between',
         background: 'linear-gradient(145deg, #dbeafe 0%, #bfdbfe 50%, #93c5fd 100%)',
         boxSizing: 'border-box',
         position: 'relative',
-        overflowX: 'hidden',
       }}
     >
       {/* Pokéball Holográfica de Fondo (Watermark) */}
@@ -168,15 +212,15 @@ function App() {
         style={{
           width: '100%',
           backgroundColor: '#e11d48',
-          padding: '16px 24px',
+          padding: '14px 24px',
           boxShadow: '0 4px 20px rgba(225, 29, 72, 0.35)',
-          position: 'sticky',
-          top: 0,
+          position: 'relative',
           zIndex: 40,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           boxSizing: 'border-box',
+          flexShrink: 0,
         }}
       >
         <div
@@ -220,11 +264,11 @@ function App() {
               position: 'absolute',
               left: '50%',
               transform: 'translateX(-50%)',
-              bottom: '-28px',
-              width: '64px',
-              height: '32px',
+              bottom: '-26px',
+              width: '60px',
+              height: '30px',
               backgroundColor: '#1e293b',
-              borderRadius: '0 0 32px 32px',
+              borderRadius: '0 0 30px 30px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -278,9 +322,10 @@ function App() {
           flexDirection: 'column',
           alignItems: 'center',
           boxSizing: 'border-box',
-          paddingTop: '20px',
+          paddingTop: '10px',
           position: 'relative',
           zIndex: 1,
+          overflow: 'hidden',
         }}
       >
         {/* Barra de Búsqueda Translúcida y Botón Aleatorio */}
@@ -290,7 +335,7 @@ function App() {
             maxWidth: '680px',
             padding: '0 20px',
             boxSizing: 'border-box',
-            marginBottom: '10px',
+            marginBottom: '8px',
             position: 'relative',
             zIndex: 1,
             display: 'flex',
@@ -298,6 +343,7 @@ function App() {
             gap: '12px',
             flexWrap: 'wrap',
             justifyContent: 'center',
+            flexShrink: 0,
           }}
         >
           <div
@@ -395,159 +441,162 @@ function App() {
           </button>
         </div>
 
-        {/* Estado de Carga Inicial de Paginación */}
-        {loading && !isSearchActive && (
-          <div
-            style={{
-              padding: '60px 20px',
-              textAlign: 'center',
-              color: '#1e3a8a',
-              position: 'relative',
-              zIndex: 1,
-            }}
-          >
+        {/* Contenedor de la Cuadrícula: 7 columnas x 3 filas = 21 Pokémon */}
+        <div
+          ref={gridContainerRef}
+          className="pokemon-grid-container"
+          style={{
+            width: '100%',
+            flex: 1,
+            boxSizing: 'border-box',
+            padding: '12px 32px',
+            display: search.trim() ? 'flex' : 'grid',
+            justifyContent: search.trim() ? 'center' : 'stretch',
+            alignItems: search.trim() ? 'flex-start' : 'stretch',
+            gridTemplateColumns: search.trim() ? 'none' : 'repeat(7, 1fr)',
+            gridTemplateRows: search.trim() ? 'none' : 'repeat(3, 1fr)',
+            gap: '16px',
+            overflow: 'hidden',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          {/* Estado de Carga Inicial */}
+          {loading && !isSearchActive && (
             <div
               style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                border: '4px solid rgba(2, 132, 199, 0.2)',
-                borderTopColor: '#0284c7',
-                animation: 'spin 1s linear infinite',
-                margin: '0 auto 16px',
-              }}
-            />
-            <p style={{ fontWeight: 600, fontSize: '1rem', margin: 0 }}>
-              Sintonizando base de datos holográfica...
-            </p>
-          </div>
-        )}
-
-        {/* Estado de Carga de Búsqueda Global */}
-        {isSearching && (
-          <div
-            style={{
-              padding: '50px 20px',
-              textAlign: 'center',
-              color: '#0284c7',
-              position: 'relative',
-              zIndex: 1,
-            }}
-          >
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                border: '4px solid rgba(2, 132, 199, 0.25)',
-                borderTopColor: '#e11d48',
-                animation: 'spin 0.8s linear infinite',
-                margin: '0 auto 14px',
-              }}
-            />
-            <p style={{ fontWeight: 600, fontSize: '0.95rem', margin: 0 }}>
-              Consultando la red nacional PokéAPI...
-            </p>
-          </div>
-        )}
-
-        {/* Error General de Paginación */}
-        {error && !loading && !isSearchActive && (
-          <div
-            style={{
-              backgroundColor: 'rgba(254, 226, 226, 0.9)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid #f87171',
-              borderRadius: '16px',
-              padding: '16px 24px',
-              color: '#991b1b',
-              margin: '30px 20px',
-              textAlign: 'center',
-              maxWidth: '500px',
-              position: 'relative',
-              zIndex: 1,
-            }}
-          >
-            <p style={{ margin: 0, fontWeight: 600 }}>Error: {error}</p>
-          </div>
-        )}
-
-        {/* Resultado No Encontrado en Búsqueda Global */}
-        {isSearchActive && searchNotFound && !isSearching && (
-          <div
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.85)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.9)',
-              borderRadius: '18px',
-              padding: '30px 24px',
-              color: '#334155',
-              margin: '30px 20px',
-              textAlign: 'center',
-              maxWidth: '520px',
-              boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.15)',
-              position: 'relative',
-              zIndex: 1,
-            }}
-          >
-            <span style={{ fontSize: '2rem', display: 'block', marginBottom: '8px' }}>
-              📡
-            </span>
-            <p style={{ fontSize: '1rem', fontWeight: 600, margin: '0 0 12px', color: '#0f172a' }}>
-              No se encontró ningún Pokémon con ese nombre en la base de datos nacional.
-            </p>
-            <button
-              type="button"
-              onClick={handleClearSearch}
-              style={{
-                backgroundColor: '#e11d48',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '9999px',
-                padding: '8px 18px',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'background-color 0.2s',
+                gridColumn: '1 / -1',
+                textAlign: 'center',
+                padding: '30px 20px',
+                color: '#1e3a8a',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              Restablecer catálogo
-            </button>
-          </div>
-        )}
-
-        {/* Modo Paginación Normal (Cuadrícula completa de 18 tarjetas) */}
-        {!isSearchActive && !loading && !error && (
-          <div style={{ width: '100%', flex: 1, position: 'relative', zIndex: 1 }}>
-            <div className="pokemon-grid">
-              {pokemonList.map((pokemon) => (
-                <PokemonCard
-                  key={pokemon.name}
-                  pokemonName={pokemon.name}
-                  onSelect={(p) => setSelectedPokemon(p)}
-                />
-              ))}
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  border: '4px solid rgba(2, 132, 199, 0.2)',
+                  borderTopColor: '#0284c7',
+                  animation: 'spin 1s linear infinite',
+                  marginBottom: '12px',
+                }}
+              />
+              <p style={{ fontWeight: 600, fontSize: '0.95rem', margin: 0 }}>
+                Sintonizando base de datos holográfica...
+              </p>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Modo Búsqueda Global Encontrada: Alineación Superior Centrada */}
-        {isSearchActive && !isSearching && searchResults.length > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'flex-start',
-              paddingTop: '24px',
-              paddingBottom: '24px',
-              minHeight: 'auto',
-              width: '100%',
-              boxSizing: 'border-box',
-              position: 'relative',
-              zIndex: 1,
-            }}
-          >
-            <div style={{ width: '100%', maxWidth: '240px' }}>
+          {/* Estado de Carga en Búsqueda Global */}
+          {isSearching && (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '30px 20px',
+                color: '#0284c7',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <div
+                style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '50%',
+                  border: '4px solid rgba(2, 132, 199, 0.25)',
+                  borderTopColor: '#e11d48',
+                  animation: 'spin 0.8s linear infinite',
+                  marginBottom: '10px',
+                }}
+              />
+              <p style={{ fontWeight: 600, fontSize: '0.95rem', margin: 0 }}>
+                Consultando la red nacional PokéAPI...
+              </p>
+            </div>
+          )}
+
+          {/* Error de Paginación */}
+          {error && !loading && !isSearchActive && (
+            <div
+              style={{
+                gridColumn: '1 / -1',
+                backgroundColor: 'rgba(254, 226, 226, 0.9)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid #f87171',
+                borderRadius: '16px',
+                padding: '16px 24px',
+                color: '#991b1b',
+                textAlign: 'center',
+                maxWidth: '500px',
+                margin: '0 auto',
+              }}
+            >
+              <p style={{ margin: 0, fontWeight: 600 }}>Error: {error}</p>
+            </div>
+          )}
+
+          {/* Resultado No Encontrado en Búsqueda */}
+          {isSearchActive && searchNotFound && !isSearching && (
+            <div
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.9)',
+                borderRadius: '18px',
+                padding: '24px 20px',
+                color: '#334155',
+                textAlign: 'center',
+                maxWidth: '520px',
+                boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.15)',
+              }}
+            >
+              <span style={{ fontSize: '1.8rem', display: 'block', marginBottom: '6px' }}>
+                📡
+              </span>
+              <p style={{ fontSize: '0.95rem', fontWeight: 600, margin: '0 0 10px', color: '#0f172a' }}>
+                No se encontró ningún Pokémon con ese nombre en la base de datos nacional.
+              </p>
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                style={{
+                  backgroundColor: '#e11d48',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '9999px',
+                  padding: '6px 16px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s',
+                }}
+              >
+                Restablecer catálogo
+              </button>
+            </div>
+          )}
+
+          {/* Cuadrícula de Pokémon: Modo Catálogo Normal */}
+          {!isSearchActive && !loading && !error && (
+            pokemonList.map((pokemon) => (
+              <PokemonCard
+                key={pokemon.name}
+                pokemonName={pokemon.name}
+                onSelect={(p) => setSelectedPokemon(p)}
+              />
+            ))
+          )}
+
+          {/* Búsqueda Global: Tarjeta Centrada */}
+          {isSearchActive && !isSearching && searchResults.length > 0 && (
+            <div style={{ width: '100%', maxWidth: '220px', paddingTop: '10px' }}>
               {searchResults.map((pokemon) => (
                 <PokemonCard
                   key={pokemon.name}
@@ -556,8 +605,8 @@ function App() {
                 />
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </main>
 
       {/* 3. Barra Inferior de Navegación (Panel Interactivo Completo) - Solo en modo catálogo normal */}
@@ -568,11 +617,11 @@ function App() {
             backgroundColor: '#e11d48',
             borderTop: '3px solid #be123c',
             boxShadow: '0 -4px 20px rgba(225, 29, 72, 0.25)',
-            padding: '12px 24px',
+            padding: '10px 24px',
             boxSizing: 'border-box',
-            position: 'sticky',
-            bottom: 0,
+            position: 'relative',
             zIndex: 40,
+            flexShrink: 0,
           }}
         >
           <div
@@ -599,7 +648,7 @@ function App() {
                 color: '#ffffff',
                 border: '1px solid rgba(255, 255, 255, 0.4)',
                 borderRadius: '20px',
-                padding: '8px 14px',
+                padding: '7px 14px',
                 fontSize: '0.85rem',
                 fontWeight: 700,
                 cursor: page === 1 || loading ? 'not-allowed' : 'pointer',
@@ -631,7 +680,7 @@ function App() {
                 color: '#ffffff',
                 border: '1px solid rgba(255, 255, 255, 0.4)',
                 borderRadius: '20px',
-                padding: '8px 14px',
+                padding: '7px 14px',
                 fontSize: '0.85rem',
                 fontWeight: 700,
                 cursor: page === 1 || loading ? 'not-allowed' : 'pointer',
@@ -655,7 +704,7 @@ function App() {
               style={{
                 backgroundColor: '#1e293b',
                 backdropFilter: 'blur(6px)',
-                padding: '6px 14px',
+                padding: '5px 14px',
                 borderRadius: '20px',
                 border: '1px solid rgba(255, 255, 255, 0.2)',
                 color: '#ffffff',
@@ -676,6 +725,7 @@ function App() {
                 onChange={(e) => setInputPage(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handlePageCommit()}
                 onBlur={handlePageCommit}
+                className="page-input"
                 style={{
                   width: '48px',
                   background: 'rgba(255, 255, 255, 0.15)',
@@ -688,6 +738,7 @@ function App() {
                   padding: '2px 4px',
                   outline: 'none',
                   margin: '0 4px',
+                  colorScheme: 'dark',
                 }}
               />
               <span>/ {totalPages}</span>
@@ -706,7 +757,7 @@ function App() {
                 color: '#ffffff',
                 border: '1px solid rgba(255, 255, 255, 0.4)',
                 borderRadius: '20px',
-                padding: '8px 14px',
+                padding: '7px 14px',
                 fontSize: '0.85rem',
                 fontWeight: 700,
                 cursor: page >= totalPages || loading ? 'not-allowed' : 'pointer',
@@ -738,7 +789,7 @@ function App() {
                 color: '#ffffff',
                 border: '1px solid rgba(255, 255, 255, 0.4)',
                 borderRadius: '20px',
-                padding: '8px 14px',
+                padding: '7px 14px',
                 fontSize: '0.85rem',
                 fontWeight: 700,
                 cursor: page >= totalPages || loading ? 'not-allowed' : 'pointer',

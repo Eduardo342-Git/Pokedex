@@ -31,8 +31,9 @@ function PokemonCard({ pokemonName, onSelect }) {
     backdropFilter: 'blur(10px)',
     WebkitBackdropFilter: 'blur(10px)',
     border: '1px solid rgba(255, 255, 255, 0.9)',
-    borderRadius: '18px',
-    padding: '16px',
+    borderRadius: '16px',
+    padding: '14px 10px',
+    height: '100%',
     width: '100%',
     boxSizing: 'border-box',
     textAlign: 'center',
@@ -40,23 +41,23 @@ function PokemonCard({ pokemonName, onSelect }) {
     transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
     transform:
       isHovered && pokemon
-        ? 'translateY(-6px) scale(1.02)'
+        ? 'translateY(-4px) scale(1.02)'
         : 'translateY(0) scale(1)',
     boxShadow:
       isHovered && pokemon
-        ? '0 20px 30px -5px rgba(59, 130, 246, 0.3), 0 8px 10px -6px rgba(59, 130, 246, 0.2)'
-        : '0 10px 25px -5px rgba(59, 130, 246, 0.15)',
+        ? '0 16px 25px -4px rgba(59, 130, 246, 0.3), 0 6px 8px -4px rgba(59, 130, 246, 0.2)'
+        : '0 6px 18px -3px rgba(59, 130, 246, 0.12)',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     userSelect: 'none',
   };
 
   if (loading) {
     return (
-      <div style={{ ...cardStyle, cursor: 'default', minHeight: '210px', justifyContent: 'center' }}>
-        <p style={{ color: '#64748b', fontSize: '0.85rem', margin: 0, fontWeight: 500 }}>
+      <div style={{ ...cardStyle, cursor: 'default', justifyContent: 'center' }}>
+        <p style={{ color: '#64748b', fontSize: '0.8rem', margin: 0, fontWeight: 500 }}>
           Sintonizando...
         </p>
       </div>
@@ -89,7 +90,7 @@ function PokemonCard({ pokemonName, onSelect }) {
       <span
         style={{
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          fontSize: '0.8rem',
+          fontSize: '0.75rem',
           fontWeight: 600,
           color: '#64748b',
           letterSpacing: '0.05em',
@@ -102,10 +103,12 @@ function PokemonCard({ pokemonName, onSelect }) {
       <div
         style={{
           width: '100%',
+          flex: 1,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          margin: '6px 0',
+          margin: '2px 0',
+          minHeight: '70px',
         }}
       >
         {spriteUrl ? (
@@ -113,28 +116,30 @@ function PokemonCard({ pokemonName, onSelect }) {
             src={spriteUrl}
             alt={pokemon.name}
             style={{
-              width: '100px',
-              height: '100px',
+              maxHeight: '100px',
+              width: 'auto',
+              maxWidth: '100%',
               objectFit: 'contain',
-              filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1))',
+              filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1))',
             }}
             loading="lazy"
           />
         ) : (
-          <div style={{ width: '100px', height: '100px' }} />
+          <div style={{ height: '70px' }} />
         )}
       </div>
 
       {/* Nombre */}
       <h3
         style={{
-          margin: '0 0 10px',
-          fontSize: '1rem',
+          margin: '0 0 6px',
+          fontSize: '0.9rem',
           fontWeight: 600,
           textTransform: 'capitalize',
           color: '#0f172a',
           letterSpacing: '-0.01em',
           wordBreak: 'break-word',
+          lineHeight: '1.2',
         }}
       >
         {pokemon.name}
@@ -144,7 +149,7 @@ function PokemonCard({ pokemonName, onSelect }) {
       <div
         style={{
           display: 'flex',
-          gap: '6px',
+          gap: '4px',
           flexWrap: 'wrap',
           justifyContent: 'center',
         }}
@@ -157,13 +162,13 @@ function PokemonCard({ pokemonName, onSelect }) {
               style={{
                 backgroundColor: color.bg,
                 color: color.text,
-                padding: '3px 10px',
+                padding: '2px 8px',
                 borderRadius: '9999px',
-                fontSize: '0.7rem',
+                fontSize: '0.65rem',
                 fontWeight: 600,
                 textTransform: 'uppercase',
                 letterSpacing: '0.04em',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
               }}
             >
               {type.name}
