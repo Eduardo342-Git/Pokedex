@@ -224,3 +224,31 @@ export const getPokemonEvolutions = async (pokemonIdOrName) => {
     });
   }
 };
+
+const abilitiesCache = {};
+
+export const getAbilityName = async (abilityUrlOrName, lang = 'es') => {
+  const key = `${abilityUrlOrName}_${lang}`;
+  if (abilitiesCache[key]) return abilitiesCache[key];
+
+  try {
+    const url = String(abilityUrlOrName).startsWith('http')
+      ? abilityUrlOrName
+      : `${BASE_URL}/ability/${abilityUrlOrName}`;
+
+    const response = await axios.get(url);
+    const nameEntry = response.data.names?.find(
+      (n) => n.language?.name === lang
+    );
+
+    // Si encuentra el nombre en el idioma elegido lo guarda, sino usa el fallback en inglés o el slug nativo
+    const localizedName = nameEntry ? nameEntry.name : response.data.name;
+    abilitiesCache[key] = localizedName;
+    return localizedName;
+  } catch (error) {
+    console.error('Error al traducir habilidad:', error);
+    return typeof abilityUrlOrName === 'string' && !abilityUrlOrName.startsWith('http')
+      ? abilityUrlOrName
+      : 'Habilidad';
+  }
+};

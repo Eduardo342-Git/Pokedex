@@ -4,6 +4,7 @@ import {
   getPokemonTypeRelations,
   getPokemonEvolutions,
   getPokemonSpeciesData,
+  getAbilityName,
 } from '../services/pokemonService';
 import { TYPE_COLORS } from '../utils/pokemonTypes';
 import { UI_TRANSLATIONS, TYPE_NAMES } from '../utils/translations';
@@ -36,6 +37,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
   const [speciesInfo, setSpeciesInfo] = useState(null);
   const [isShiny, setIsShiny] = useState(false);
   const [loadingCombatData, setLoadingCombatData] = useState(false);
+  const [translatedAbilities, setTranslatedAbilities] = useState([]);
   const prevPokemonNameRef = useRef(currentPokemon?.name);
 
   // Sincronizar si cambia la prop pokemon externamente sin efecto en cascada
@@ -93,6 +95,36 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
 
     loadData();
 
+    return () => {
+      isMounted = false;
+    };
+  }, [currentPokemon, language]);
+
+  // Carga reactiva de nombres de habilidades traducidas al cambiar currentPokemon o language
+  useEffect(() => {
+    let isMounted = true;
+    if (!currentPokemon) return;
+
+    const loadAbilities = async () => {
+      try {
+        const translated = await Promise.all(
+          (currentPokemon.abilities || []).map(async (item) => {
+            const name = await getAbilityName(item.ability?.url || item.ability?.name, language);
+            return {
+              name,
+              is_hidden: item.is_hidden,
+            };
+          })
+        );
+        if (isMounted) {
+          setTranslatedAbilities(translated);
+        }
+      } catch (error) {
+        console.error('Error al traducir habilidades:', error);
+      }
+    };
+
+    loadAbilities();
     return () => {
       isMounted = false;
     };
@@ -712,38 +744,41 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                   >
                     {UI_TRANSLATIONS[language].abilities}
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {currentPokemon.abilities?.map(({ ability, is_hidden }) => (
-                      <span
-                        key={ability.name}
-                        style={{
-                          backgroundColor: is_hidden ? '#fef3c7' : '#f1f5f9',
-                          color: is_hidden ? '#92400e' : '#334155',
-                          border: is_hidden ? '1px solid #fcd34d' : '1px solid #e2e8f0',
-                          borderRadius: '6px',
-                          padding: '3px 8px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          textTransform: 'capitalize',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        {ability.name.replace(/-/g, ' ')}
-                        {is_hidden && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {translatedAbilities.length > 0
+                      ? translatedAbilities.map((ab, index) => (
                           <span
+                            key={index}
                             style={{
-                              color: '#b91c1c',
-                              fontWeight: 700,
-                              fontSize: '10px',
+                              backgroundColor: ab.is_hidden ? '#fef3c7' : '#f1f5f9',
+                              color: ab.is_hidden ? '#92400e' : '#334155',
+                              border: `1px solid ${ab.is_hidden ? '#fde68a' : '#cbd5e1'}`,
+                              padding: '4px 10px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              fontWeight: '600',
                             }}
                           >
-                            {UI_TRANSLATIONS[language].hidden}
+                            {ab.name} {ab.is_hidden && (language === 'es' ? '(Oculta)' : '(Hidden)')}
                           </span>
-                        )}
-                      </span>
-                    ))}
+                        ))
+                      : currentPokemon.abilities?.map(({ ability, is_hidden }, index) => (
+                          <span
+                            key={index}
+                            style={{
+                              backgroundColor: is_hidden ? '#fef3c7' : '#f1f5f9',
+                              color: is_hidden ? '#92400e' : '#334155',
+                              border: `1px solid ${is_hidden ? '#fde68a' : '#cbd5e1'}`,
+                              padding: '4px 10px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                            }}
+                          >
+                            {ability.name.replace(/-/g, ' ')}{' '}
+                            {is_hidden && (language === 'es' ? '(Oculta)' : '(Hidden)')}
+                          </span>
+                        ))}
                   </div>
                 </div>
 
