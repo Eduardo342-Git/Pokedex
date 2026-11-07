@@ -2,12 +2,15 @@ import axios from 'axios';
 
 const BASE_URL = import.meta.env.VITE_POKEAPI_URL;
 
-export const getPokemonList = async (limit = 20, offset = 0) => {
+export const getPokemonList = async (limit = 12, offset = 0) => {
   try {
     const response = await axios.get(`${BASE_URL}/pokemon?limit=${limit}&offset=${offset}`);
-    return response.data.results;
+    return {
+      results: response.data.results,
+      count: response.data.count
+    };
   } catch (error) {
-    throw new Error('Error al obtener la lista de datos: ' + error.message, { cause: error });
+    throw new Error('Error al obtener el catálogo: ' + error.message);
   }
 };
 
