@@ -1,27 +1,27 @@
-import { useState, useEffect, useRef } from 'react';
-import { getPokemonList, getPokemonDetails } from './services/pokemonService';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { getPokemonList, getPokemonDetails, getAllPokemonNames } from './services/pokemonService';
 import PokemonCard from './components/PokemonCard';
 import PokemonModal from './components/PokemonModal';
+import { UI_TRANSLATIONS } from './utils/translations';
 
 function App() {
   const gridContainerRef = useRef(null);
 
+  const [language, setLanguage] = useState('es');
   const [limit, setLimit] = useState(
     typeof window !== 'undefined' && window.innerWidth >= 1024 ? 21 : 12
   );
   const [pokemonList, setPokemonList] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
-  const [inputPage, setInputPage] = useState(page);
+  const [inputPage, setInputPage] = useState(1);
   const [search, setSearch] = useState('');
   const [selectedPokemon, setSelectedPokemon] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Estados para búsqueda global
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchNotFound, setSearchNotFound] = useState(false);
+  // Catálogo completo para búsqueda instantánea en memoria
+  const [allPokemons, setAllPokemons] = useState([]);
 
   // Ajuste del límite de tarjetas por pantalla (21 en escritorio: 7 cols x 3 rows)
   const updateLimitFromContainer = () => {
@@ -56,95 +56,79 @@ function App() {
     return () => observer.disconnect();
   }, []);
 
-  // Sincronizar inputPage cada vez que page cambie
+  // Cargar catálogo global en segundo plano al montar la aplicación
   useEffect(() => {
-    setInputPage(page);
-  }, [page]);
+    let isMounted = true;
+    const fetchCatalog = async () => {
+      const data = await getAllPokemonNames();
+      if (isMounted && Array.isArray(data)) {
+        setAllPokemons(data);
+      }
+    };
+    fetchCatalog();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const totalPages = Math.ceil(totalCount / limit) || 1;
 
   // Carga inicial y por paginación (reactiva a page y limit)
   useEffect(() => {
+    let isMounted = true;
     const loadData = async () => {
       try {
         setLoading(true);
         setError(null);
         const offset = (page - 1) * limit;
         const data = await getPokemonList(limit, offset);
-        setPokemonList(data.results || []);
-        setTotalCount(data.count || 0);
+        if (isMounted) {
+          setPokemonList(data.results || []);
+          setTotalCount(data.count || 0);
+        }
       } catch (err) {
-        setError(err.message);
+        if (isMounted) setError(err.message);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     loadData();
+    return () => {
+      isMounted = false;
+    };
   }, [page, limit]);
 
-  // Asegurar que page no quede fuera de rango tras recalcular limit
-  useEffect(() => {
-    const maxPages = Math.ceil(totalCount / limit) || 1;
-    if (page > maxPages) {
-      setPage(maxPages);
-    }
-  }, [limit, totalCount, page]);
+  // Búsqueda global instantánea en memoria (por prefijos o fragmentos)
+  const query = search.trim().toLowerCase();
+  const isSearchActive = query !== '';
 
-  // Búsqueda global con Debounce
-  useEffect(() => {
-    const query = search.trim().toLowerCase();
+  const matchedPokemons = useMemo(() => {
+    if (!query) return [];
+    return allPokemons
+      .filter((p) => p.name.toLowerCase().includes(query))
+      .slice(0, 18);
+  }, [allPokemons, query]);
 
-    if (!query) {
-      setSearchResults([]);
-      setSearchNotFound(false);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-    setSearchNotFound(false);
-
-    const timer = setTimeout(async () => {
-      try {
-        const data = await getPokemonDetails(query);
-        if (data && data.name) {
-          setSearchResults([{ name: data.name }]);
-          setSearchNotFound(false);
-        } else {
-          setSearchResults([]);
-          setSearchNotFound(true);
-        }
-      } catch {
-        setSearchResults([]);
-        setSearchNotFound(true);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  const isSearchActive = search.trim() !== '';
-  const totalPages = Math.ceil(totalCount / limit) || 1;
+  const goToPage = (newPage) => {
+    const valid = Math.max(1, Math.min(newPage, totalPages));
+    setPage(valid);
+    setInputPage(valid);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handlePageCommit = () => {
     const parsed = parseInt(inputPage, 10);
     if (isNaN(parsed) || parsed < 1) {
-      setPage(1);
-      setInputPage(1);
+      goToPage(1);
     } else if (parsed > totalPages) {
-      setPage(totalPages);
-      setInputPage(totalPages);
+      goToPage(totalPages);
     } else {
-      setPage(parsed);
+      goToPage(parsed);
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleClearSearch = () => {
     setSearch('');
-    setSearchResults([]);
-    setSearchNotFound(false);
-    setIsSearching(false);
   };
 
   const handleRandomPokemon = async () => {
@@ -217,77 +201,118 @@ function App() {
           position: 'relative',
           zIndex: 40,
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
+          justifyContent: 'space-between',
           boxSizing: 'border-box',
           flexShrink: 0,
         }}
       >
-        <div
-          style={{
-            width: '100%',
-            maxWidth: '1400px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            position: 'relative',
-          }}
-        >
-          {/* Sensor frontal / Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '18px',
-                height: '18px',
-                borderRadius: '50%',
-                backgroundColor: '#38bdf8',
-                border: '2px solid #ffffff',
-                boxShadow: '0 0 10px rgba(56, 189, 248, 0.9)',
-              }}
-            />
-            <span
-              style={{
-                color: '#ffffff',
-                fontWeight: 900,
-                fontSize: '1.25rem',
-                letterSpacing: '3px',
-                textTransform: 'uppercase',
-              }}
-            >
-              POKÉDEX
-            </span>
-          </div>
-
-          {/* Arco / Semicírculo Pokéball Phone característico */}
+        {/* Sensor frontal / Logo anclado estrictamente a la izquierda */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div
             style={{
-              position: 'absolute',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              bottom: '-26px',
-              width: '60px',
-              height: '30px',
-              backgroundColor: '#1e293b',
-              borderRadius: '0 0 30px 30px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 10px rgba(0, 0, 0, 0.25)',
-              borderBottom: '3px solid #e11d48',
-              borderLeft: '3px solid #e11d48',
-              borderRight: '3px solid #e11d48',
+              width: '20px',
+              height: '20px',
+              borderRadius: '50%',
+              backgroundColor: '#38bdf8',
+              border: '2px solid #ffffff',
+              boxShadow: '0 0 10px rgba(56, 189, 248, 0.9)',
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              color: '#ffffff',
+              fontWeight: 900,
+              fontSize: 'clamp(1.2rem, 1.8vw, 1.5rem)',
+              letterSpacing: '4px',
+              textTransform: 'uppercase',
+              lineHeight: 1,
+              userSelect: 'none',
             }}
           >
-            <div
+            POKÉDEX
+          </span>
+        </div>
+
+        {/* Arco / Semicírculo Pokéball Phone característico */}
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            bottom: '-26px',
+            width: '60px',
+            height: '30px',
+            backgroundColor: '#1e293b',
+            borderRadius: '0 0 30px 30px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.25)',
+            borderBottom: '3px solid #e11d48',
+            borderLeft: '3px solid #e11d48',
+            borderRight: '3px solid #e11d48',
+          }}
+        >
+          <div
+            style={{
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              backgroundColor: '#38bdf8',
+              boxShadow: '0 0 6px rgba(56, 189, 248, 0.9)',
+              border: '2px solid #ffffff',
+            }}
+          />
+        </div>
+
+        {/* Lado derecho: Conmutador de Idioma y Badge de Conteo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Conmutador de Idioma */}
+          <div
+            style={{
+              display: 'flex',
+              backgroundColor: 'rgba(0, 0, 0, 0.25)',
+              borderRadius: '20px',
+              padding: '2px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setLanguage('es')}
               style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                backgroundColor: '#38bdf8',
-                boxShadow: '0 0 6px rgba(56, 189, 248, 0.9)',
-                border: '2px solid #ffffff',
+                backgroundColor: language === 'es' ? '#ffffff' : 'transparent',
+                color: language === 'es' ? '#dc2626' : '#ffffff',
+                border: 'none',
+                borderRadius: '16px',
+                padding: '4px 10px',
+                fontSize: '11px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
               }}
-            />
+            >
+              ES
+            </button>
+            <button
+              type="button"
+              onClick={() => setLanguage('en')}
+              style={{
+                backgroundColor: language === 'en' ? '#ffffff' : 'transparent',
+                color: language === 'en' ? '#dc2626' : '#ffffff',
+                border: 'none',
+                borderRadius: '16px',
+                padding: '4px 10px',
+                fontSize: '11px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              EN
+            </button>
           </div>
 
           {/* Insignia de conteo de Pokémon */}
@@ -302,12 +327,13 @@ function App() {
               fontSize: '0.8rem',
               fontWeight: 700,
               letterSpacing: '0.05em',
+              flexShrink: 0,
             }}
           >
             {isSearchActive
-              ? 'Búsqueda Global'
+              ? `${matchedPokemons.length} ${language === 'es' ? 'resultado' : 'result'}${matchedPokemons.length === 1 ? '' : 's'}`
               : totalCount > 0
-              ? `${totalCount} Pokémon`
+              ? `${totalCount} ${UI_TRANSLATIONS[language].totalPokemon}`
               : 'Holo-Net'}
           </div>
         </div>
@@ -365,7 +391,7 @@ function App() {
             <span style={{ fontSize: '1.1rem', color: '#0284c7' }}>🔍</span>
             <input
               type="text"
-              placeholder="Buscar Pokemon por nombre"
+              placeholder={UI_TRANSLATIONS[language].searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
@@ -416,7 +442,7 @@ function App() {
           <button
             type="button"
             onClick={handleRandomPokemon}
-            title="Obtener Pokémon aleatorio"
+            title={language === 'es' ? 'Obtener Pokémon aleatorio' : 'Get random Pokémon'}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -437,11 +463,11 @@ function App() {
             onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           >
             <span>🎲</span>
-            <span>Aleatorio</span>
+            <span>{UI_TRANSLATIONS[language].randomBtn}</span>
           </button>
         </div>
 
-        {/* Contenedor de la Cuadrícula: 7 columnas x 3 filas = 21 Pokémon */}
+        {/* Contenedor de la Cuadrícula */}
         <div
           ref={gridContainerRef}
           className="pokemon-grid-container"
@@ -450,13 +476,14 @@ function App() {
             flex: 1,
             boxSizing: 'border-box',
             padding: '12px 32px',
-            display: search.trim() ? 'flex' : 'grid',
-            justifyContent: search.trim() ? 'center' : 'stretch',
-            alignItems: search.trim() ? 'flex-start' : 'stretch',
-            gridTemplateColumns: search.trim() ? 'none' : 'repeat(7, 1fr)',
-            gridTemplateRows: search.trim() ? 'none' : 'repeat(3, 1fr)',
+            display: isSearchActive ? 'flex' : 'grid',
+            flexDirection: isSearchActive ? 'column' : 'initial',
+            justifyContent: isSearchActive ? 'flex-start' : 'stretch',
+            alignItems: 'stretch',
+            gridTemplateColumns: isSearchActive ? 'none' : 'repeat(7, 1fr)',
+            gridTemplateRows: isSearchActive ? 'none' : 'repeat(3, 1fr)',
             gap: '16px',
-            overflow: 'hidden',
+            overflowY: 'auto',
             position: 'relative',
             zIndex: 1,
           }}
@@ -487,42 +514,12 @@ function App() {
                 }}
               />
               <p style={{ fontWeight: 600, fontSize: '0.95rem', margin: 0 }}>
-                Sintonizando base de datos holográfica...
+                {UI_TRANSLATIONS[language].loadingCatalog}
               </p>
             </div>
           )}
 
-          {/* Estado de Carga en Búsqueda Global */}
-          {isSearching && (
-            <div
-              style={{
-                textAlign: 'center',
-                padding: '30px 20px',
-                color: '#0284c7',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <div
-                style={{
-                  width: '34px',
-                  height: '34px',
-                  borderRadius: '50%',
-                  border: '4px solid rgba(2, 132, 199, 0.25)',
-                  borderTopColor: '#e11d48',
-                  animation: 'spin 0.8s linear infinite',
-                  marginBottom: '10px',
-                }}
-              />
-              <p style={{ fontWeight: 600, fontSize: '0.95rem', margin: 0 }}>
-                Consultando la red nacional PokéAPI...
-              </p>
-            </div>
-          )}
-
-          {/* Error de Paginación */}
+          {/* Error de Carga */}
           {error && !loading && !isSearchActive && (
             <div
               style={{
@@ -542,26 +539,27 @@ function App() {
             </div>
           )}
 
-          {/* Resultado No Encontrado en Búsqueda */}
-          {isSearchActive && searchNotFound && !isSearching && (
+          {/* Búsqueda Global: 0 Resultados */}
+          {isSearchActive && matchedPokemons.length === 0 && (
             <div
               style={{
                 backgroundColor: 'rgba(255, 255, 255, 0.85)',
                 backdropFilter: 'blur(10px)',
                 border: '1px solid rgba(255, 255, 255, 0.9)',
                 borderRadius: '18px',
-                padding: '24px 20px',
+                padding: '24px 28px',
                 color: '#334155',
                 textAlign: 'center',
                 maxWidth: '520px',
+                margin: '20px auto 0',
                 boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.15)',
               }}
             >
-              <span style={{ fontSize: '1.8rem', display: 'block', marginBottom: '6px' }}>
+              <span style={{ fontSize: '2rem', display: 'block', marginBottom: '8px' }}>
                 📡
               </span>
-              <p style={{ fontSize: '0.95rem', fontWeight: 600, margin: '0 0 10px', color: '#0f172a' }}>
-                No se encontró ningún Pokémon con ese nombre en la base de datos nacional.
+              <p style={{ fontSize: '1rem', fontWeight: 600, margin: '0 0 12px', color: '#0f172a' }}>
+                {UI_TRANSLATIONS[language].noResults}
               </p>
               <button
                 type="button"
@@ -571,15 +569,68 @@ function App() {
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '9999px',
-                  padding: '6px 16px',
-                  fontSize: '0.8rem',
+                  padding: '8px 20px',
+                  fontSize: '0.85rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   transition: 'background-color 0.2s',
                 }}
               >
-                Restablecer catálogo
+                {UI_TRANSLATIONS[language].resetCatalog}
               </button>
+            </div>
+          )}
+
+          {/* Búsqueda Global: 1 a 3 Resultados (Centrados en la parte superior) */}
+          {isSearchActive && matchedPokemons.length >= 1 && matchedPokemons.length <= 3 && (
+            <div
+              style={{
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'flex-start',
+                gap: '16px',
+                flexWrap: 'wrap',
+                paddingTop: '8px',
+              }}
+            >
+              {matchedPokemons.map((pokemon) => (
+                <div
+                  key={pokemon.name}
+                  style={{
+                    width: 'clamp(190px, 20vw, 240px)',
+                    height: '280px',
+                  }}
+                >
+                  <PokemonCard
+                    pokemonName={pokemon.name}
+                    language={language}
+                    onSelect={(p) => setSelectedPokemon(p)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Búsqueda Global: Más de 3 Resultados (Cuadrícula fluida de borde a borde) */}
+          {isSearchActive && matchedPokemons.length > 3 && (
+            <div
+              style={{
+                width: '100%',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                gridAutoRows: '270px',
+                gap: '16px',
+              }}
+            >
+              {matchedPokemons.map((pokemon) => (
+                <PokemonCard
+                  key={pokemon.name}
+                  pokemonName={pokemon.name}
+                  language={language}
+                  onSelect={(p) => setSelectedPokemon(p)}
+                />
+              ))}
             </div>
           )}
 
@@ -589,22 +640,10 @@ function App() {
               <PokemonCard
                 key={pokemon.name}
                 pokemonName={pokemon.name}
+                language={language}
                 onSelect={(p) => setSelectedPokemon(p)}
               />
             ))
-          )}
-
-          {/* Búsqueda Global: Tarjeta Centrada */}
-          {isSearchActive && !isSearching && searchResults.length > 0 && (
-            <div style={{ width: '100%', maxWidth: '220px', paddingTop: '10px' }}>
-              {searchResults.map((pokemon) => (
-                <PokemonCard
-                  key={pokemon.name}
-                  pokemonName={pokemon.name}
-                  onSelect={(p) => setSelectedPokemon(p)}
-                />
-              ))}
-            </div>
           )}
         </div>
       </main>
@@ -638,10 +677,7 @@ function App() {
             {/* Botón « Inicio */}
             <button
               type="button"
-              onClick={() => {
-                setPage(1);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+              onClick={() => goToPage(1)}
               disabled={page === 1 || loading}
               style={{
                 backgroundColor: '#0284c7',
@@ -664,16 +700,13 @@ function App() {
                 if (page !== 1 && !loading) e.currentTarget.style.backgroundColor = '#0284c7';
               }}
             >
-              « Inicio
+              {UI_TRANSLATIONS[language].first}
             </button>
 
             {/* Botón ◀ Anterior */}
             <button
               type="button"
-              onClick={() => {
-                setPage((prev) => Math.max(prev - 1, 1));
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+              onClick={() => goToPage(page - 1)}
               disabled={page === 1 || loading}
               style={{
                 backgroundColor: '#0284c7',
@@ -696,7 +729,7 @@ function App() {
                 if (page !== 1 && !loading) e.currentTarget.style.backgroundColor = '#0284c7';
               }}
             >
-              ◀ Anterior
+              {UI_TRANSLATIONS[language].prev}
             </button>
 
             {/* Cápsula interactiva Pág. [input] / totalPages */}
@@ -716,7 +749,7 @@ function App() {
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
               }}
             >
-              <span>Pág.</span>
+              <span>{UI_TRANSLATIONS[language].page}</span>
               <input
                 type="number"
                 min="1"
@@ -747,10 +780,7 @@ function App() {
             {/* Botón Siguiente ▶ */}
             <button
               type="button"
-              onClick={() => {
-                setPage((prev) => Math.min(prev + 1, totalPages));
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+              onClick={() => goToPage(page + 1)}
               disabled={page >= totalPages || loading}
               style={{
                 backgroundColor: '#0284c7',
@@ -773,16 +803,13 @@ function App() {
                 if (page < totalPages && !loading) e.currentTarget.style.backgroundColor = '#0284c7';
               }}
             >
-              Siguiente ▶
+              {UI_TRANSLATIONS[language].next}
             </button>
 
             {/* Botón Final » */}
             <button
               type="button"
-              onClick={() => {
-                setPage(totalPages);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+              onClick={() => goToPage(totalPages)}
               disabled={page >= totalPages || loading}
               style={{
                 backgroundColor: '#0284c7',
@@ -805,7 +832,7 @@ function App() {
                 if (page < totalPages && !loading) e.currentTarget.style.backgroundColor = '#0284c7';
               }}
             >
-              Final »
+              {UI_TRANSLATIONS[language].last}
             </button>
           </div>
         </footer>
@@ -815,6 +842,7 @@ function App() {
       {selectedPokemon && (
         <PokemonModal
           pokemon={selectedPokemon}
+          language={language}
           onClose={() => setSelectedPokemon(null)}
         />
       )}

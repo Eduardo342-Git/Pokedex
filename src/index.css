@@ -79,5 +79,21 @@ body {
   }
 }
 
+/* Layout a doble pantalla abatible del PokemonModal */
+.pokedex-dual-screen {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 767px) {
+  .pokedex-dual-screen {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+}
+
 
 

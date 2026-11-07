@@ -1,5 +1,12 @@
-import { useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import {
+  getPokemonDetails,
+  getPokemonTypeRelations,
+  getPokemonEvolutions,
+  getPokemonSpeciesData,
+} from '../services/pokemonService';
 import { TYPE_COLORS } from '../utils/pokemonTypes';
+import { UI_TRANSLATIONS, TYPE_NAMES } from '../utils/translations';
 
 const STAT_LABELS = {
   hp: 'HP',
@@ -16,7 +23,29 @@ const getBarColor = (value) => {
   return '#06b6d4';
 };
 
-function PokemonModal({ pokemon, onClose }) {
+function PokemonModal({ pokemon, onClose, language = 'es' }) {
+  // Gestión de estados locales en el modal
+  const [currentPokemon, setCurrentPokemon] = useState(pokemon);
+  const [prevPokemonProp, setPrevPokemonProp] = useState(pokemon);
+  const [typeRelations, setTypeRelations] = useState({
+    strongAgainst: [],
+    weakAgainst: [],
+    notEffectiveAgainst: [],
+  });
+  const [evolutionChain, setEvolutionChain] = useState([]);
+  const [speciesInfo, setSpeciesInfo] = useState(null);
+  const [isShiny, setIsShiny] = useState(false);
+  const [loadingCombatData, setLoadingCombatData] = useState(false);
+  const prevPokemonNameRef = useRef(currentPokemon?.name);
+
+  // Sincronizar si cambia la prop pokemon externamente sin efecto en cascada
+  if (pokemon !== prevPokemonProp) {
+    setPrevPokemonProp(pokemon);
+    setCurrentPokemon(pokemon);
+    setIsShiny(false);
+  }
+
+  // Cierre con la tecla Escape
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && onClose) {
@@ -27,10 +56,74 @@ function PokemonModal({ pokemon, onClose }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  if (!pokemon) return null;
+  // Carga reactiva de especie, relaciones y evolución al cambiar currentPokemon o language
+  useEffect(() => {
+    let isMounted = true;
+    if (!currentPokemon) return;
+
+    const loadData = async () => {
+      try {
+        if (prevPokemonNameRef.current !== currentPokemon.name) {
+          prevPokemonNameRef.current = currentPokemon.name;
+          if (isMounted) setIsShiny(false);
+        }
+        setLoadingCombatData(true);
+        const types = currentPokemon.types?.map((t) => t.type.name) || [];
+        const [relations, evolutions, species] = await Promise.all([
+          getPokemonTypeRelations(types),
+          getPokemonEvolutions(currentPokemon.name),
+          getPokemonSpeciesData(currentPokemon.name, language),
+        ]);
+
+        if (isMounted) {
+          setTypeRelations(
+            relations || { strongAgainst: [], weakAgainst: [], notEffectiveAgainst: [] }
+          );
+          setEvolutionChain(evolutions || []);
+          setSpeciesInfo(species || { description: '', genus: '' });
+        }
+      } catch (error) {
+        console.error('Error cargando datos de Pokémon:', error);
+      } finally {
+        if (isMounted) {
+          setLoadingCombatData(false);
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentPokemon, language]);
+
+  if (!currentPokemon) return null;
+
+  // Lógica de navegación de evoluciones
+  const currentIndex = evolutionChain.indexOf(currentPokemon.name.toLowerCase());
+  const preEvolutionName = currentIndex > 0 ? evolutionChain[currentIndex - 1] : null;
+  const nextEvolutionName =
+    currentIndex !== -1 && currentIndex < evolutionChain.length - 1
+      ? evolutionChain[currentIndex + 1]
+      : null;
+
+  // Función de cambio rápido de evolución
+  const handleNavigateEvolution = async (targetName) => {
+    try {
+      setLoadingCombatData(true);
+      const updatedPokemon = await getPokemonDetails(targetName);
+      setCurrentPokemon(updatedPokemon);
+      setIsShiny(false);
+    } catch (error) {
+      console.error('Error al navegar evolución:', error);
+    } finally {
+      setLoadingCombatData(false);
+    }
+  };
 
   const playCry = () => {
-    const audioUrl = pokemon.cries?.latest || pokemon.cries?.legacy;
+    const audioUrl = currentPokemon.cries?.latest || currentPokemon.cries?.legacy;
     if (audioUrl) {
       const audio = new Audio(audioUrl);
       audio.volume = 0.6;
@@ -38,14 +131,18 @@ function PokemonModal({ pokemon, onClose }) {
     }
   };
 
-  const hasCry = Boolean(pokemon.cries?.latest || pokemon.cries?.legacy);
-  const formattedId = `#${String(pokemon.id).padStart(3, '0')}`;
-  const artworkUrl =
-    pokemon.sprites?.other?.['official-artwork']?.front_default ||
-    pokemon.sprites?.front_default;
+  const hasCry = Boolean(currentPokemon.cries?.latest || currentPokemon.cries?.legacy);
+  const formattedId = `#${String(currentPokemon.id).padStart(3, '0')}`;
+
+  // Selección reactiva del sprite según isShiny
+  const spriteUrl = isShiny
+    ? currentPokemon.sprites?.other?.['official-artwork']?.front_shiny ||
+      currentPokemon.sprites?.front_shiny
+    : currentPokemon.sprites?.other?.['official-artwork']?.front_default ||
+      currentPokemon.sprites?.front_default;
 
   const totalStats =
-    pokemon.stats?.reduce((acc, curr) => acc + curr.base_stat, 0) || 0;
+    currentPokemon.stats?.reduce((acc, curr) => acc + curr.base_stat, 0) || 0;
 
   return (
     <div
@@ -64,14 +161,16 @@ function PokemonModal({ pokemon, onClose }) {
         boxSizing: 'border-box',
       }}
     >
-      {/* Carcasa de la Mini Pokédex Retro-Moderna */}
+      {/* Carcasa Principal Ancha de la Pokédex Doble Pantalla Abatible */}
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '100%',
-          maxWidth: '440px',
+          width: '95%',
+          maxWidth: '860px',
           maxHeight: '90vh',
           overflowY: 'auto',
+          scrollBehavior: 'smooth',
+          WebkitOverflowScrolling: 'touch',
           padding: '20px',
           position: 'relative',
           background: 'linear-gradient(145deg, #dc2626 0%, #b91c1c 100%)',
@@ -84,7 +183,7 @@ function PokemonModal({ pokemon, onClose }) {
           color: '#0f172a',
         }}
       >
-        {/* 1. Cabecera de Luces y Sensores (Top Bar) */}
+        {/* 1. Cabecera Superior: Gema LED Cian, Luces de Estado y Botón Cerrar */}
         <div
           style={{
             display: 'flex',
@@ -95,9 +194,8 @@ function PokemonModal({ pokemon, onClose }) {
             borderBottom: '2px solid #7f1d1d',
           }}
         >
-          {/* Lente principal y 3 luces */}
+          {/* Lente principal y 3 luces de estado */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Lente azul cian */}
             <div
               style={{
                 width: '38px',
@@ -110,7 +208,6 @@ function PokemonModal({ pokemon, onClose }) {
                   '0 0 10px rgba(56, 189, 248, 0.8), 0 2px 4px rgba(0, 0, 0, 0.3)',
               }}
             />
-            {/* 3 luces pequeñas: roja, amarilla y verde */}
             <div style={{ display: 'flex', gap: '6px' }}>
               <div
                 style={{
@@ -173,283 +270,830 @@ function PokemonModal({ pokemon, onClose }) {
           </button>
         </div>
 
-        {/* 2. Pantalla Interior LCD de Datos (Bisel Gris + Contenido) */}
-        <div
-          style={{
-            backgroundColor: '#e2e8f0',
-            border: '2px solid #cbd5e1',
-            borderRadius: '16px',
-            padding: '16px 14px',
-            boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          {/* Dos pequeños puntos rojos superiores estilo LED/micrófono */}
+        {/* 2. Estructura Interna a Doble Pantalla LCD Adaptable */}
+        <div className="pokedex-dual-screen">
+          {/* ======================================================== */}
+          {/* PANTALLA IZQUIERDA: Visor del Espécimen, Datos y Lore     */}
+          {/* ======================================================== */}
           <div
             style={{
+              backgroundColor: '#e2e8f0',
+              border: '2px solid #cbd5e1',
+              borderRadius: '16px',
+              padding: '14px',
+              boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.1)',
               display: 'flex',
-              justifyContent: 'center',
-              gap: '10px',
-              marginBottom: '10px',
+              flexDirection: 'column',
             }}
           >
-            <span
+            {/* Pequeños puntos rojos superiores estilo LED */}
+            <div
               style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: '#ef4444',
-                boxShadow: '0 0 3px rgba(239, 68, 68, 0.7)',
-                display: 'inline-block',
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '8px',
+                marginBottom: '8px',
               }}
-            />
-            <span
-              style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: '#ef4444',
-                boxShadow: '0 0 3px rgba(239, 68, 68, 0.7)',
-                display: 'inline-block',
-              }}
-            />
-          </div>
-
-          {/* Área visual de la pantalla LCD */}
-          <div
-            style={{
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '12px',
-              padding: '12px',
-              boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.05)',
-            }}
-          >
-            {/* ID y Nombre */}
-            <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+            >
               <span
                 style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                  color: '#64748b',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                {formattedId}
-              </span>
-              <h2
-                style={{
-                  margin: '2px 0 0',
-                  fontSize: '1.4rem',
-                  fontWeight: 800,
-                  textTransform: 'capitalize',
-                  color: '#0f172a',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                {pokemon.name}
-              </h2>
-            </div>
-
-            {/* Sprite Oficial en fondo circular suave */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: '10px',
-              }}
-            >
-              <div
-                style={{
-                  width: '135px',
-                  height: '135px',
+                  width: '6px',
+                  height: '6px',
                   borderRadius: '50%',
-                  background:
-                    'radial-gradient(circle, #e2e8f0 0%, #f1f5f9 70%, transparent 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ef4444',
+                  boxShadow: '0 0 3px rgba(239, 68, 68, 0.7)',
+                  display: 'inline-block',
                 }}
-              >
-                {artworkUrl ? (
-                  <img
-                    src={artworkUrl}
-                    alt={pokemon.name}
-                    style={{
-                      width: '130px',
-                      height: '130px',
-                      objectFit: 'contain',
-                      filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15))',
-                    }}
-                  />
-                ) : (
-                  <span style={{ color: '#94a3b8' }}>Sin imagen</span>
-                )}
-              </div>
-            </div>
-
-            {/* Badges de Tipos */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                gap: '6px',
-                flexWrap: 'wrap',
-                marginBottom: '12px',
-              }}
-            >
-              {pokemon.types?.map(({ type }) => {
-                const color = TYPE_COLORS[type.name] || { bg: '#64748b', text: '#ffffff' };
-                return (
-                  <span
-                    key={type.name}
-                    style={{
-                      backgroundColor: color.bg,
-                      color: color.text,
-                      padding: '3px 12px',
-                      borderRadius: '9999px',
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                    }}
-                  >
-                    {type.name}
-                  </span>
-                );
-              })}
-            </div>
-
-            {/* Botón de Audio (Función Pokédex) */}
-            <div style={{ textAlign: 'center', marginBottom: '14px' }}>
-              <button
-                type="button"
-                onClick={playCry}
-                disabled={!hasCry}
+              />
+              <span
                 style={{
-                  backgroundColor: hasCry ? '#0284c7' : '#94a3b8',
-                  color: '#ffffff',
-                  borderRadius: '9999px',
-                  padding: '7px 18px',
-                  border: 'none',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  cursor: hasCry ? 'pointer' : 'not-allowed',
-                  opacity: hasCry ? 1 : 0.6,
-                  transition: 'background-color 0.2s',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: hasCry ? '0 2px 6px rgba(2, 132, 199, 0.35)' : 'none',
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#ef4444',
+                  boxShadow: '0 0 3px rgba(239, 68, 68, 0.7)',
+                  display: 'inline-block',
                 }}
-                onMouseEnter={(e) => {
-                  if (hasCry) e.currentTarget.style.backgroundColor = '#0369a1';
-                }}
-                onMouseLeave={(e) => {
-                  if (hasCry) e.currentTarget.style.backgroundColor = '#0284c7';
-                }}
-              >
-                🔊 Escuchar Sonido
-              </button>
+              />
             </div>
 
-            {/* Estadísticas Base y Total */}
+            {/* Pantalla interior LCD blanca/azulada con scroll suave independiente */}
             <div
               style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '10px',
-                padding: '12px',
+                backgroundColor: '#f8fafc',
                 border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '12px',
+                boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                flex: 1,
+                maxHeight: '62vh',
+                overflowY: 'auto',
+                scrollBehavior: 'smooth',
               }}
             >
+              {/* Encabezado: #ID y Nombre */}
+              <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                <span
+                  style={{
+                    fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    color: '#64748b',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  {formattedId}
+                </span>
+                <h2
+                  translate="no"
+                  className="notranslate"
+                  style={{
+                    margin: '2px 0 0',
+                    fontSize: '1.4rem',
+                    fontWeight: 800,
+                    textTransform: 'capitalize',
+                    color: '#0f172a',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  {currentPokemon.name}
+                </h2>
+              </div>
+
+              {/* Selector Shiny ✨ tipo píldora (encima del sprite) */}
               <div
                 style={{
                   display: 'flex',
-                  justifyContent: 'space-between',
+                  justifyContent: 'center',
                   alignItems: 'center',
                   marginBottom: '8px',
                 }}
               >
-                <span
+                <button
+                  type="button"
+                  onClick={() => setIsShiny((prev) => !prev)}
+                  title={
+                    isShiny
+                      ? language === 'es'
+                        ? 'Ver forma normal'
+                        : 'View normal form'
+                      : language === 'es'
+                      ? 'Ver forma variocolor (Shiny)'
+                      : 'View shiny form'
+                  }
                   style={{
-                    fontSize: '0.75rem',
+                    backgroundColor: isShiny ? '#fef08a' : '#f1f5f9',
+                    color: isShiny ? '#854d0e' : '#475569',
+                    border: isShiny ? '1px solid #facc15' : '1px solid #cbd5e1',
+                    borderRadius: '9999px',
+                    padding: '3px 12px',
+                    fontSize: '11px',
                     fontWeight: 700,
-                    color: '#64748b',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: isShiny ? '0 2px 4px rgba(234, 179, 8, 0.25)' : 'none',
                   }}
                 >
-                  Estadísticas Base
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.8rem',
-                    fontWeight: 800,
-                    color: '#0f172a',
-                  }}
-                >
-                  Total: {totalStats}
-                </span>
+                  {isShiny ? UI_TRANSLATIONS[language].shiny : UI_TRANSLATIONS[language].normal}
+                </button>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {pokemon.stats?.map((s) => {
-                  const label = STAT_LABELS[s.stat.name] || s.stat.name.toUpperCase();
-                  const val = s.base_stat;
-                  const percentage = Math.min(100, (val / 255) * 100);
-                  const barColor = getBarColor(val);
-
-                  return (
-                    <div
-                      key={s.stat.name}
+              {/* Sprite Oficial centrado con altura cómoda (140px - 160px) */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginBottom: '8px',
+                }}
+              >
+                <div
+                  style={{
+                    width: '150px',
+                    height: '150px',
+                    borderRadius: '50%',
+                    background: isShiny
+                      ? 'radial-gradient(circle, #fef08a 0%, #fef9c3 60%, transparent 100%)'
+                      : 'radial-gradient(circle, #e2e8f0 0%, #f1f5f9 70%, transparent 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: isShiny ? '2px solid #eab308' : '1px solid #cbd5e1',
+                    transition: 'all 0.3s ease',
+                  }}
+                >
+                  {spriteUrl ? (
+                    <img
+                      src={spriteUrl}
+                      alt={`${currentPokemon.name}${isShiny ? ' shiny' : ''}`}
                       style={{
-                        display: 'grid',
-                        gridTemplateColumns: '55px 30px 1fr',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '0.75rem',
+                        height: '140px',
+                        width: 'auto',
+                        maxWidth: '100%',
+                        objectFit: 'contain',
+                        filter: isShiny
+                          ? 'drop-shadow(0 4px 8px rgba(234, 179, 8, 0.45))'
+                          : 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15))',
+                        transition: 'filter 0.3s ease',
+                      }}
+                    />
+                  ) : (
+                    <span style={{ color: '#94a3b8' }}>{UI_TRANSLATIONS[language].noImage}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Badges de Tipos Oficiales */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  flexWrap: 'wrap',
+                  marginBottom: '8px',
+                }}
+              >
+                {currentPokemon.types?.map(({ type }) => {
+                  const color = TYPE_COLORS[type.name] || { bg: '#64748b', text: '#ffffff' };
+                  const translatedType = TYPE_NAMES[language]?.[type.name] || type.name;
+                  return (
+                    <span
+                      key={type.name}
+                      style={{
+                        backgroundColor: color.bg,
+                        color: color.text,
+                        padding: '3px 12px',
+                        borderRadius: '9999px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
                       }}
                     >
-                      <span style={{ fontWeight: 600, color: '#64748b' }}>{label}</span>
-                      <span
-                        style={{
-                          fontWeight: 700,
-                          color: '#0f172a',
-                          textAlign: 'right',
-                        }}
-                      >
-                        {val}
-                      </span>
-                      <div
-                        style={{
-                          height: '7px',
-                          backgroundColor: '#e2e8f0',
-                          borderRadius: '9999px',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <div
-                          style={{
-                            height: '100%',
-                            width: `${percentage}%`,
-                            backgroundColor: barColor,
-                            borderRadius: '9999px',
-                            transition: 'width 0.4s ease',
-                          }}
-                        />
-                      </div>
-                    </div>
+                      {translatedType}
+                    </span>
                   );
                 })}
               </div>
+
+              {/* Botón de Audio Nativo */}
+              <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+                <button
+                  type="button"
+                  onClick={playCry}
+                  disabled={!hasCry}
+                  style={{
+                    backgroundColor: hasCry ? '#0284c7' : '#94a3b8',
+                    color: '#ffffff',
+                    borderRadius: '9999px',
+                    padding: '6px 16px',
+                    border: 'none',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: hasCry ? 'pointer' : 'not-allowed',
+                    opacity: hasCry ? 1 : 0.6,
+                    transition: 'background-color 0.2s',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: hasCry ? '0 2px 6px rgba(2, 132, 199, 0.35)' : 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (hasCry) e.currentTarget.style.backgroundColor = '#0369a1';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (hasCry) e.currentTarget.style.backgroundColor = '#0284c7';
+                  }}
+                >
+                  🔊 {UI_TRANSLATIONS[language].listenCry}
+                </button>
+              </div>
+
+              {/* Ficha Técnica: Género/Categoría */}
+              {speciesInfo?.genus && (
+                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                  <span
+                    style={{
+                      fontSize: '0.76rem',
+                      fontWeight: 600,
+                      color: '#64748b',
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    {speciesInfo.genus}
+                  </span>
+                </div>
+              )}
+
+              {/* Medidas Físicas (Grid de 2 columnas compacto) */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '8px',
+                  marginBottom: '10px',
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: '#ffffff',
+                    padding: '6px 8px',
+                    borderRadius: '8px',
+                    textAlign: 'center',
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '0.66rem',
+                      fontWeight: 700,
+                      color: '#64748b',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    📏 {UI_TRANSLATIONS[language].height}
+                  </span>
+                  <p
+                    style={{
+                      margin: '2px 0 0',
+                      fontSize: '0.88rem',
+                      fontWeight: 800,
+                      color: '#0f172a',
+                    }}
+                  >
+                    {(currentPokemon.height / 10).toFixed(1)} m
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: '#ffffff',
+                    padding: '6px 8px',
+                    borderRadius: '8px',
+                    textAlign: 'center',
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '0.66rem',
+                      fontWeight: 700,
+                      color: '#64748b',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    ⚖️ {UI_TRANSLATIONS[language].weight}
+                  </span>
+                  <p
+                    style={{
+                      margin: '2px 0 0',
+                      fontSize: '0.88rem',
+                      fontWeight: 800,
+                      color: '#0f172a',
+                    }}
+                  >
+                    {(currentPokemon.weight / 10).toFixed(1)} kg
+                  </p>
+                </div>
+              </div>
+
+              {/* Caja de Texto de la Pokédex (Lore) */}
+              <div
+                style={{
+                  backgroundColor: '#f1f5f9',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: '12px',
+                    lineHeight: '1.45',
+                    color: '#334155',
+                    fontStyle: 'italic',
+                  }}
+                >
+                  "{speciesInfo?.description || (language === 'es' ? 'Cargando datos de la Pokédex...' : 'Loading Pokédex data...')}"
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ======================================================== */}
+          {/* PANTALLA DERECHA: Consola de Datos, Combate y Evolución  */}
+          {/* ======================================================== */}
+          <div
+            style={{
+              backgroundColor: '#e2e8f0',
+              border: '2px solid #cbd5e1',
+              borderRadius: '16px',
+              padding: '14px',
+              boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.1)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {/* Pequeños puntos rojos superiores estilo LED */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '8px',
+                marginBottom: '8px',
+              }}
+            >
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#ef4444',
+                  boxShadow: '0 0 3px rgba(239, 68, 68, 0.7)',
+                  display: 'inline-block',
+                }}
+              />
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#ef4444',
+                  boxShadow: '0 0 3px rgba(239, 68, 68, 0.7)',
+                  display: 'inline-block',
+                }}
+              />
+            </div>
+
+            {/* Pantalla interior LCD blanca/azulada con scroll suave independiente */}
+            <div
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '12px',
+                boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                flex: 1,
+                maxHeight: '62vh',
+                overflowY: 'auto',
+                scrollBehavior: 'smooth',
+              }}
+            >
+              <div>
+                {/* Sección: HABILIDADES (ubicada justo arriba de Eficacia en Combate) */}
+                <div
+                  style={{
+                    backgroundColor: '#ffffff',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    border: '1px solid #e2e8f0',
+                    marginBottom: '10px',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      color: '#64748b',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      marginBottom: '6px',
+                    }}
+                  >
+                    {UI_TRANSLATIONS[language].abilities}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {currentPokemon.abilities?.map(({ ability, is_hidden }) => (
+                      <span
+                        key={ability.name}
+                        style={{
+                          backgroundColor: is_hidden ? '#fef3c7' : '#f1f5f9',
+                          color: is_hidden ? '#92400e' : '#334155',
+                          border: is_hidden ? '1px solid #fcd34d' : '1px solid #e2e8f0',
+                          borderRadius: '6px',
+                          padding: '3px 8px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          textTransform: 'capitalize',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        {ability.name.replace(/-/g, ' ')}
+                        {is_hidden && (
+                          <span
+                            style={{
+                              color: '#b91c1c',
+                              fontWeight: 700,
+                              fontSize: '10px',
+                            }}
+                          >
+                            {UI_TRANSLATIONS[language].hidden}
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sección: Eficacia en Combate */}
+                <div
+                  style={{
+                    backgroundColor: '#ffffff',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    border: '1px solid #e2e8f0',
+                    marginBottom: '10px',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      color: '#64748b',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      marginBottom: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span>{UI_TRANSLATIONS[language].combatEfficiency}</span>
+                    {loadingCombatData && (
+                      <span style={{ fontSize: '0.65rem', color: '#0284c7', textTransform: 'none' }}>
+                        {UI_TRANSLATIONS[language].syncing}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Fila 1: 💥 Fuerte contra */}
+                  <div style={{ marginBottom: '6px' }}>
+                    <div
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        color: '#0f172a',
+                        marginBottom: '3px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <span>💥</span>
+                      <span>{UI_TRANSLATIONS[language].strongAgainst}</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '18px' }}>
+                      {typeRelations.strongAgainst && typeRelations.strongAgainst.length > 0 ? (
+                        typeRelations.strongAgainst.map((typeName) => {
+                          const color = TYPE_COLORS[typeName] || { bg: '#64748b', text: '#ffffff' };
+                          const translatedTypeName = TYPE_NAMES[language]?.[typeName] || typeName;
+                          return (
+                            <span
+                              key={typeName}
+                              style={{
+                                backgroundColor: color.bg,
+                                color: color.text,
+                                padding: '2px 7px',
+                                borderRadius: '9999px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.03em',
+                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+                              }}
+                            >
+                              {translatedTypeName}
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                          {UI_TRANSLATIONS[language].none}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Fila 2: 🛡️ Débil ante */}
+                  <div style={{ marginBottom: '6px' }}>
+                    <div
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        color: '#0f172a',
+                        marginBottom: '3px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <span>🛡️</span>
+                      <span>{UI_TRANSLATIONS[language].weakAgainst}</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '18px' }}>
+                      {typeRelations.weakAgainst && typeRelations.weakAgainst.length > 0 ? (
+                        typeRelations.weakAgainst.map((typeName) => {
+                          const color = TYPE_COLORS[typeName] || { bg: '#64748b', text: '#ffffff' };
+                          const translatedTypeName = TYPE_NAMES[language]?.[typeName] || typeName;
+                          return (
+                            <span
+                              key={typeName}
+                              style={{
+                                backgroundColor: color.bg,
+                                color: color.text,
+                                padding: '2px 7px',
+                                borderRadius: '9999px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.03em',
+                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+                              }}
+                            >
+                              {translatedTypeName}
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                          {UI_TRANSLATIONS[language].none}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Fila 3: ⛔ Ineficaz contra */}
+                  <div>
+                    <div
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        color: '#0f172a',
+                        marginBottom: '3px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <span>⛔</span>
+                      <span>{UI_TRANSLATIONS[language].notEffectiveAgainst}</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '18px' }}>
+                      {typeRelations.notEffectiveAgainst &&
+                      typeRelations.notEffectiveAgainst.length > 0 ? (
+                        typeRelations.notEffectiveAgainst.map((typeName) => {
+                          const color = TYPE_COLORS[typeName] || { bg: '#64748b', text: '#ffffff' };
+                          const translatedTypeName = TYPE_NAMES[language]?.[typeName] || typeName;
+                          return (
+                            <span
+                              key={typeName}
+                              style={{
+                                backgroundColor: color.bg,
+                                color: color.text,
+                                padding: '2px 7px',
+                                borderRadius: '9999px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.03em',
+                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+                              }}
+                            >
+                              {translatedTypeName}
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                          {UI_TRANSLATIONS[language].none}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sección: Estadísticas Base */}
+                <div
+                  style={{
+                    backgroundColor: '#ffffff',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    border: '1px solid #e2e8f0',
+                    marginBottom: '10px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '6px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        color: '#64748b',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      {UI_TRANSLATIONS[language].baseStats}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '0.78rem',
+                        fontWeight: 800,
+                        color: '#0f172a',
+                      }}
+                    >
+                      {UI_TRANSLATIONS[language].total}: {totalStats}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    {currentPokemon.stats?.map((s) => {
+                      const label = STAT_LABELS[s.stat.name] || s.stat.name.toUpperCase();
+                      const val = s.base_stat;
+                      const percentage = Math.min(100, (val / 255) * 100);
+                      const barColor = getBarColor(val);
+
+                      return (
+                        <div
+                          key={s.stat.name}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '50px 28px 1fr',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '0.72rem',
+                          }}
+                        >
+                          <span style={{ fontWeight: 600, color: '#64748b' }}>{label}</span>
+                          <span
+                            style={{
+                              fontWeight: 700,
+                              color: '#0f172a',
+                              textAlign: 'right',
+                            }}
+                          >
+                            {val}
+                          </span>
+                          <div
+                            style={{
+                              height: '6px',
+                              backgroundColor: '#e2e8f0',
+                              borderRadius: '9999px',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <div
+                              style={{
+                                height: '100%',
+                                width: `${percentage}%`,
+                                backgroundColor: barColor,
+                                borderRadius: '9999px',
+                                transition: 'width 0.4s ease',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Botonera de Evoluciones al pie */}
+              {(preEvolutionName || nextEvolutionName) && (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    marginTop: '8px',
+                  }}
+                >
+                  {preEvolutionName && (
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateEvolution(preEvolutionName)}
+                      disabled={loadingCombatData}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        backgroundColor: '#334155',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: loadingCombatData ? 'not-allowed' : 'pointer',
+                        opacity: loadingCombatData ? 0.6 : 1,
+                        textTransform: 'capitalize',
+                        transition: 'background-color 0.2s',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!loadingCombatData) e.currentTarget.style.backgroundColor = '#1e293b';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!loadingCombatData) e.currentTarget.style.backgroundColor = '#334155';
+                      }}
+                    >
+                      ◀ <span translate="no" className="notranslate">{preEvolutionName}</span>
+                    </button>
+                  )}
+                  {nextEvolutionName && (
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateEvolution(nextEvolutionName)}
+                      disabled={loadingCombatData}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        backgroundColor: '#e11d48',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: loadingCombatData ? 'not-allowed' : 'pointer',
+                        opacity: loadingCombatData ? 0.6 : 1,
+                        textTransform: 'capitalize',
+                        transition: 'background-color 0.2s',
+                        boxShadow: '0 2px 4px rgba(225, 29, 72, 0.25)',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!loadingCombatData) e.currentTarget.style.backgroundColor = '#be123c';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!loadingCombatData) e.currentTarget.style.backgroundColor = '#e11d48';
+                      }}
+                    >
+                      <span translate="no" className="notranslate">{nextEvolutionName}</span> ▶
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* 3. Detalles Físicos Inferiores (Mandos Pokédex) */}
+        {/* 3. Mandos Inferiores Pokédex (Detalles Físicos Decorativos) */}
         <div
           style={{
             display: 'flex',
