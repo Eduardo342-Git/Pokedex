@@ -602,9 +602,11 @@ function App() {
             matchedPokemons.map((pokemon) => (
               <PokemonCard
                 key={pokemon.name}
+                pokemon={pokemon}
                 pokemonName={pokemon.name}
                 language={language}
                 onSelect={(p) => setSelectedPokemon(p)}
+                onClick={(p) => setSelectedPokemon(p)}
               />
             ))}
 
@@ -615,9 +617,11 @@ function App() {
             pokemonList.map((pokemon) => (
               <PokemonCard
                 key={pokemon.name}
+                pokemon={pokemon}
                 pokemonName={pokemon.name}
                 language={language}
                 onSelect={(p) => setSelectedPokemon(p)}
+                onClick={(p) => setSelectedPokemon(p)}
               />
             ))}
         </div>
