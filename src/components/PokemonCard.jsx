@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getPokemonDetails } from '../services/pokemonService';
-import { TYPE_COLORS } from '../utils/pokemonTypes';
+import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
 import { TYPE_NAMES } from '../utils/translations';
 
 function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
@@ -27,11 +27,13 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
     };
   }, [pokemonName]);
 
+  const primaryType = pokemon?.types?.[0]?.type?.name || 'normal';
+  const borderColor = TYPE_BORDER_COLORS[primaryType] || '#e2e8f0';
+  const pastelBg = TYPE_PASTEL_COLORS[primaryType] || '#f8fafc';
+
   const cardStyle = {
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-    backdropFilter: 'blur(10px)',
-    WebkitBackdropFilter: 'blur(10px)',
-    border: '1px solid rgba(255, 255, 255, 0.9)',
+    backgroundColor: pastelBg,
+    border: `2px solid ${borderColor}`,
     borderRadius: '16px',
     height: '100%',
     width: '100%',
@@ -43,21 +45,33 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
     boxSizing: 'border-box',
     textAlign: 'center',
     cursor: pokemon ? 'pointer' : 'default',
-    transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-    transform:
-      isHovered && pokemon
-        ? 'translateY(-4px) scale(1.02)'
-        : 'translateY(0) scale(1)',
+    transition: 'all 0.25s ease',
+    transform: isHovered && pokemon ? 'translateY(-4px)' : 'translateY(0)',
     boxShadow:
       isHovered && pokemon
-        ? '0 16px 25px -4px rgba(59, 130, 246, 0.3), 0 6px 8px -4px rgba(59, 130, 246, 0.2)'
-        : '0 6px 18px -3px rgba(59, 130, 246, 0.12)',
+        ? `0 8px 20px ${borderColor}50`
+        : `0 4px 12px ${borderColor}25`,
     userSelect: 'none',
   };
 
   if (loading) {
     return (
-      <div style={{ ...cardStyle, cursor: 'default', justifyContent: 'center' }}>
+      <div
+        style={{
+          backgroundColor: '#f8fafc',
+          border: '2px solid #e2e8f0',
+          borderRadius: '16px',
+          height: '100%',
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '16px 12px',
+          boxSizing: 'border-box',
+          cursor: 'default',
+        }}
+      >
         <p style={{ color: '#64748b', fontSize: '0.85rem', margin: 0, fontWeight: 500 }}>
           {language === 'es' ? 'Sintonizando...' : 'Tuning in...'}
         </p>

@@ -7,7 +7,7 @@ import {
   getAbilityName,
   getPokemonMovesCategorized,
 } from '../services/pokemonService';
-import { TYPE_COLORS, TYPE_PASTEL_COLORS } from '../utils/pokemonTypes';
+import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
 import { UI_TRANSLATIONS, TYPE_NAMES } from '../utils/translations';
 
 const STAT_LABELS = {
@@ -188,6 +188,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
 
   const primaryType = currentPokemon.types?.[0]?.type?.name || 'normal';
   const pastelBg = TYPE_PASTEL_COLORS[primaryType] || '#f8fafc';
+  const borderColor = TYPE_BORDER_COLORS[primaryType] || '#cbd5e1';
 
   return (
     <div
@@ -362,23 +363,21 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
               />
             </div>
 
-            {/* Pantalla interior LCD con fondo pastel dinámico y scroll suave independiente */}
+            {/* Pantalla interior LCD con fondo pastel dinámico y ajuste sin scroll */}
             <div
               style={{
                 backgroundColor: pastelBg,
                 position: 'relative',
                 overflow: 'hidden',
                 transition: 'background-color 0.3s ease',
-                border: '1px solid rgba(0, 0, 0, 0.08)',
-                borderRadius: '12px',
-                padding: '12px',
+                border: `2px solid ${borderColor}`,
+                borderRadius: '16px',
+                padding: '10px 14px',
                 boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.05)',
                 display: 'flex',
                 flexDirection: 'column',
                 flex: 1,
                 maxHeight: '62vh',
-                overflowY: 'auto',
-                scrollBehavior: 'smooth',
               }}
             >
               {/* Marca de agua Pokéball decorativa */}
@@ -396,7 +395,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 }}
               />
               {/* Encabezado: #ID y Nombre */}
-              <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+              <div style={{ textAlign: 'center', marginBottom: '6px' }}>
                 <span
                   style={{
                     fontFamily: 'ui-monospace, SFMono-Regular, monospace',
@@ -413,7 +412,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                   className="notranslate"
                   style={{
                     margin: '2px 0 0',
-                    fontSize: '1.4rem',
+                    fontSize: '1.35rem',
                     fontWeight: 800,
                     textTransform: 'capitalize',
                     color: '#0f172a',
@@ -430,7 +429,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                 }}
               >
                 <button
@@ -450,7 +449,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                     color: isShiny ? '#854d0e' : '#475569',
                     border: isShiny ? '1px solid #facc15' : '1px solid #cbd5e1',
                     borderRadius: '9999px',
-                    padding: '3px 12px',
+                    padding: '2px 10px',
                     fontSize: '11px',
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -465,19 +464,19 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 </button>
               </div>
 
-              {/* Sprite Oficial centrado con altura cómoda (140px - 160px) */}
+              {/* Sprite Oficial centrado con altura compacta */}
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                 }}
               >
                 <div
                   style={{
-                    width: '150px',
-                    height: '150px',
+                    width: '120px',
+                    height: '120px',
                     borderRadius: '50%',
                     background: isShiny
                       ? 'radial-gradient(circle, #fef08a 0%, #fef9c3 60%, transparent 100%)'
@@ -494,7 +493,8 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                       src={spriteUrl}
                       alt={`${currentPokemon.name}${isShiny ? ' shiny' : ''}`}
                       style={{
-                        height: '140px',
+                        maxHeight: '115px',
+                        height: '115px',
                         width: 'auto',
                         maxWidth: '100%',
                         objectFit: 'contain',
@@ -517,7 +517,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                   justifyContent: 'center',
                   gap: '6px',
                   flexWrap: 'wrap',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                 }}
               >
                 {currentPokemon.types?.map(({ type }) => {
@@ -529,9 +529,9 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                       style={{
                         backgroundColor: color.bg,
                         color: color.text,
-                        padding: '3px 12px',
+                        padding: '2px 10px',
                         borderRadius: '9999px',
-                        fontSize: '0.72rem',
+                        fontSize: '0.7rem',
                         fontWeight: 700,
                         textTransform: 'uppercase',
                         letterSpacing: '0.04em',
@@ -545,7 +545,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
               </div>
 
               {/* Botón de Audio Nativo */}
-              <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+              <div style={{ textAlign: 'center', marginBottom: '8px' }}>
                 <button
                   type="button"
                   onClick={playCry}
@@ -554,9 +554,9 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                     backgroundColor: hasCry ? '#0284c7' : '#94a3b8',
                     color: '#ffffff',
                     borderRadius: '9999px',
-                    padding: '6px 16px',
+                    padding: '4px 14px',
                     border: 'none',
-                    fontSize: '0.78rem',
+                    fontSize: '0.75rem',
                     fontWeight: 700,
                     cursor: hasCry ? 'pointer' : 'not-allowed',
                     opacity: hasCry ? 1 : 0.6,
@@ -579,10 +579,10 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
 
               {/* Ficha Técnica: Género/Categoría */}
               {speciesInfo?.genus && (
-                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                <div style={{ textAlign: 'center', marginBottom: '6px' }}>
                   <span
                     style={{
-                      fontSize: '0.76rem',
+                      fontSize: '0.74rem',
                       fontWeight: 600,
                       color: '#64748b',
                       letterSpacing: '0.02em',
@@ -599,13 +599,13 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                   display: 'grid',
                   gridTemplateColumns: '1fr 1fr',
                   gap: '8px',
-                  marginBottom: '10px',
+                  marginBottom: '8px',
                 }}
               >
                 <div
                   style={{
                     backgroundColor: '#ffffff',
-                    padding: '6px 8px',
+                    padding: '5px 8px',
                     borderRadius: '8px',
                     textAlign: 'center',
                     border: '1px solid #e2e8f0',
@@ -613,7 +613,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 >
                   <span
                     style={{
-                      fontSize: '0.66rem',
+                      fontSize: '0.64rem',
                       fontWeight: 700,
                       color: '#64748b',
                       textTransform: 'uppercase',
@@ -623,8 +623,8 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                   </span>
                   <p
                     style={{
-                      margin: '2px 0 0',
-                      fontSize: '0.88rem',
+                      margin: '1px 0 0',
+                      fontSize: '0.84rem',
                       fontWeight: 800,
                       color: '#0f172a',
                     }}
@@ -636,7 +636,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 <div
                   style={{
                     backgroundColor: '#ffffff',
-                    padding: '6px 8px',
+                    padding: '5px 8px',
                     borderRadius: '8px',
                     textAlign: 'center',
                     border: '1px solid #e2e8f0',
@@ -644,7 +644,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 >
                   <span
                     style={{
-                      fontSize: '0.66rem',
+                      fontSize: '0.64rem',
                       fontWeight: 700,
                       color: '#64748b',
                       textTransform: 'uppercase',
@@ -654,8 +654,8 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                   </span>
                   <p
                     style={{
-                      margin: '2px 0 0',
-                      fontSize: '0.88rem',
+                      margin: '1px 0 0',
+                      fontSize: '0.84rem',
                       fontWeight: 800,
                       color: '#0f172a',
                     }}
@@ -668,19 +668,23 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
               {/* Caja de Texto de la Pokédex (Lore) */}
               <div
                 style={{
-                  backgroundColor: '#f1f5f9',
-                  border: '1px solid #e2e8f0',
+                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
                   borderRadius: '8px',
-                  padding: '8px 12px',
+                  padding: '6px 10px',
                 }}
               >
                 <p
                   style={{
                     margin: 0,
-                    fontSize: '12px',
-                    lineHeight: '1.45',
+                    fontSize: '11px',
+                    lineHeight: '1.35',
                     color: '#334155',
                     fontStyle: 'italic',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
                   }}
                 >
                   "{speciesInfo?.description || (language === 'es' ? 'Cargando datos de la Pokédex...' : 'Loading Pokédex data...')}"
@@ -734,24 +738,22 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
               />
             </div>
 
-            {/* Pantalla interior LCD derecha con fondo pastel dinámico y scroll suave independiente */}
+            {/* Pantalla interior LCD derecha con fondo pastel dinámico y ajuste sin scroll */}
             <div
               style={{
                 backgroundColor: pastelBg,
                 position: 'relative',
                 overflow: 'hidden',
                 transition: 'background-color 0.3s ease',
-                border: '1px solid rgba(0, 0, 0, 0.08)',
-                borderRadius: '12px',
-                padding: '12px',
+                border: `2px solid ${borderColor}`,
+                borderRadius: '16px',
+                padding: '10px 14px',
                 boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.05)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 flex: 1,
                 maxHeight: '62vh',
-                overflowY: 'auto',
-                scrollBehavior: 'smooth',
               }}
             >
               {/* Marca de agua Pokéball decorativa */}
@@ -774,7 +776,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 style={{
                   display: 'flex',
                   gap: '8px',
-                  marginBottom: '12px',
+                  marginBottom: '10px',
                   borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
                   paddingBottom: '8px',
                   position: 'relative',
@@ -786,7 +788,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                   onClick={() => setActiveTab('info')}
                   style={{
                     flex: 1,
-                    padding: '8px',
+                    padding: '7px',
                     borderRadius: '8px',
                     border: 'none',
                     fontWeight: '700',
@@ -805,7 +807,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                   onClick={() => setActiveTab('moves')}
                   style={{
                     flex: 1,
-                    padding: '8px',
+                    padding: '7px',
                     borderRadius: '8px',
                     border: 'none',
                     fontWeight: '700',
@@ -830,9 +832,9 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                       style={{
                         backgroundColor: '#ffffff',
                         borderRadius: '10px',
-                        padding: '10px 12px',
+                        padding: '8px 12px',
                         border: '1px solid #e2e8f0',
-                        marginBottom: '10px',
+                        marginBottom: '8px',
                       }}
                     >
                       <div
@@ -892,7 +894,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                         borderRadius: '10px',
                         padding: '10px 12px',
                         border: '1px solid #e2e8f0',
-                        marginBottom: '10px',
+                        marginBottom: '8px',
                       }}
                     >
                       <div
@@ -1158,8 +1160,9 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
 
                 {activeTab === 'moves' && (
                   <div
+                    className="pokemon-moves-scroll"
                     style={{
-                      maxHeight: '380px',
+                      maxHeight: '340px',
                       overflowY: 'auto',
                       paddingRight: '6px',
                       display: 'flex',
