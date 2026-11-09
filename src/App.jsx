@@ -118,25 +118,30 @@ function App() {
     setInputPage(1);
   };
 
-  // Búsqueda global instantánea en memoria (soporta nombres e IDs con/sin # o ceros a la izquierda)
-  const query = search.trim().toLowerCase().replace(/#/g, '');
-  const isSearchActive = query !== '';
-  const isNumeric = !isNaN(query) && query !== '';
-  const numericQuery = isNumeric ? parseInt(query, 10).toString() : null;
+  // Búsqueda por ID exacta e inteligente / coincidencia por texto en nombres
+  const rawQuery = search.trim().toLowerCase();
+  const cleanQuery = rawQuery.replace('#', '');
+  const isSearchActive = rawQuery !== '';
+
+  // Si el usuario ingresó números (ej. '#001', '001', '25', '#4'):
+  const isNumeric = /^\d+$/.test(cleanQuery);
+  const searchId = isNumeric ? parseInt(cleanQuery, 10) : null;
 
   const matchedPokemons = useMemo(() => {
     if (!isSearchActive) return [];
     return allPokemons.filter((p) => {
-      // Extraer el ID real de la URL de PokéAPI: "https://pokeapi.co/api/v2/pokemon/1/"
       const urlParts = p.url ? p.url.split('/').filter(Boolean) : [];
-      const pId = urlParts[urlParts.length - 1];
+      const pId = parseInt(urlParts[urlParts.length - 1], 10);
 
+      // 1. Si busca por número o almohadilla (#001, 1, 25): coincidencia numérica EXACTA
       if (isNumeric) {
-        return pId === numericQuery || pId.startsWith(numericQuery);
+        return pId === searchId;
       }
-      return p.name.toLowerCase().includes(query);
+
+      // 2. Si busca por texto (ej. 'char', 'pika'): coincidencia en el nombre
+      return p.name.toLowerCase().includes(rawQuery);
     });
-  }, [allPokemons, isSearchActive, isNumeric, numericQuery, query]);
+  }, [allPokemons, isSearchActive, isNumeric, searchId, rawQuery]);
 
   const goToPage = (newPage) => {
     const valid = Math.max(1, Math.min(newPage, totalPages));
@@ -529,12 +534,9 @@ function App() {
             flex: 1,
             boxSizing: 'border-box',
             padding: '12px 32px',
-            display: isSearchActive ? 'flex' : 'grid',
-            flexDirection: isSearchActive ? 'column' : 'initial',
-            justifyContent: isSearchActive ? 'flex-start' : 'stretch',
-            alignItems: 'stretch',
-            gridTemplateColumns: isSearchActive ? 'none' : 'repeat(7, 1fr)',
-            gridTemplateRows: isSearchActive ? 'none' : 'repeat(3, 1fr)',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, 1fr)',
+            gridTemplateRows: 'repeat(3, 1fr)',
             gap: '16px',
             overflowY: 'auto',
             position: 'relative',
@@ -596,6 +598,8 @@ function App() {
           {isSearchActive && matchedPokemons.length === 0 && (
             <div
               style={{
+                gridColumn: '1 / -1',
+                gridRow: '1 / -1',
                 backgroundColor: 'rgba(255, 255, 255, 0.85)',
                 backdropFilter: 'blur(10px)',
                 border: '1px solid rgba(255, 255, 255, 0.9)',
@@ -604,7 +608,7 @@ function App() {
                 color: '#334155',
                 textAlign: 'center',
                 maxWidth: '520px',
-                margin: '20px auto 0',
+                margin: 'auto',
                 boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.15)',
               }}
             >
@@ -634,61 +638,21 @@ function App() {
             </div>
           )}
 
-          {/* Búsqueda Global: 1 a 3 Resultados (Centrados en la parte superior) */}
-          {isSearchActive && matchedPokemons.length >= 1 && matchedPokemons.length <= 3 && (
-            <div
-              style={{
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'flex-start',
-                gap: '16px',
-                flexWrap: 'wrap',
-                paddingTop: '8px',
-              }}
-            >
-              {matchedPokemons.map((pokemon) => (
-                <div
-                  key={pokemon.name}
-                  style={{
-                    width: 'clamp(190px, 20vw, 240px)',
-                    height: '280px',
-                  }}
-                >
-                  <PokemonCard
-                    pokemonName={pokemon.name}
-                    language={language}
-                    onSelect={(p) => setSelectedPokemon(p)}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Modo Búsqueda: Renderiza las tarjetas directamente en la cuadrícula fija */}
+          {isSearchActive &&
+            matchedPokemons.map((pokemon) => (
+              <PokemonCard
+                key={pokemon.name}
+                pokemonName={pokemon.name}
+                language={language}
+                onSelect={(p) => setSelectedPokemon(p)}
+              />
+            ))}
 
-          {/* Búsqueda Global: Más de 3 Resultados (Cuadrícula fluida de borde a borde) */}
-          {isSearchActive && matchedPokemons.length > 3 && (
-            <div
-              style={{
-                width: '100%',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                gridAutoRows: '270px',
-                gap: '16px',
-              }}
-            >
-              {matchedPokemons.map((pokemon) => (
-                <PokemonCard
-                  key={pokemon.name}
-                  pokemonName={pokemon.name}
-                  language={language}
-                  onSelect={(p) => setSelectedPokemon(p)}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Cuadrícula de Pokémon: Modo Catálogo Normal */}
-          {!isSearchActive && !loading && !error && (
+          {/* Modo Catálogo Normal */}
+          {!isSearchActive &&
+            !loading &&
+            !error &&
             pokemonList.map((pokemon) => (
               <PokemonCard
                 key={pokemon.name}
@@ -696,8 +660,7 @@ function App() {
                 language={language}
                 onSelect={(p) => setSelectedPokemon(p)}
               />
-            ))
-          )}
+            ))}
         </div>
       </main>
 
