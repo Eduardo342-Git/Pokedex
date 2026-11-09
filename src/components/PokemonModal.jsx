@@ -11,6 +11,7 @@ import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/po
 import { UI_TRANSLATIONS, TYPE_NAMES } from '../utils/translations';
 import PokeballWatermark from './PokeballWatermark';
 import TypeDecorations from './TypeDecorations';
+import TypeParticles from './TypeParticles';
 import StatRadarChart from './StatRadarChart';
 
 const STAT_LABELS = {
@@ -329,6 +330,14 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
   const pastelBg = TYPE_PASTEL_COLORS[primaryType] || '#f8fafc';
   const borderColor = TYPE_BORDER_COLORS[primaryType] || '#cbd5e1';
 
+  const isFloating =
+    (displayPokemon.types || currentPokemon.types)?.some((t) =>
+      ['flying', 'dragon', 'ghost'].includes(t.type.name)
+    ) ||
+    ['charizard', 'butterfree', 'pidgeot', 'mew', 'mewtwo', 'gengar', 'deoxys'].some((name) =>
+      (displayPokemon.name || currentPokemon.name).toLowerCase().includes(name)
+    );
+
   return (
     <div
       onClick={onClose}
@@ -400,6 +409,32 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
             background-color: #ca8a04;
             box-shadow: 0 0 2px #ca8a04;
             transform: scale(1);
+          }
+        }
+        @keyframes pokemonIdleBreath {
+          0%, 100% {
+            transform: scaleY(1) scaleX(1);
+          }
+          50% {
+            transform: scaleY(1.03) scaleX(0.985);
+          }
+        }
+        @keyframes pokemonHoverFloat {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-8px);
+          }
+        }
+        @keyframes shadowPulse {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 0.25;
+          }
+          50% {
+            transform: scale(0.85);
+            opacity: 0.12;
           }
         }
         .pokedex-lens-btn {
@@ -673,6 +708,12 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                 color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}
               />
 
+              {/* Flujo de partículas elementales flotantes de fondo */}
+              <TypeParticles
+                type={primaryType}
+                color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}
+              />
+
               {/* Encabezado: #ID y Nombre agrandados */}
               <div style={{ textAlign: 'center', marginBottom: '4px', position: 'relative', zIndex: 1 }}>
                 <span
@@ -813,23 +854,46 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}
                 />
                 {spriteUrl ? (
-                  <img
-                    src={spriteUrl}
-                    alt={`${displayPokemon.name}${isShiny ? ' shiny' : ''}`}
-                    style={{
-                      height: '175px',
-                      maxHeight: '185px',
-                      width: 'auto',
-                      maxWidth: '100%',
-                      objectFit: 'contain',
-                      filter: isShiny
-                        ? 'drop-shadow(0 6px 12px rgba(234, 179, 8, 0.45))'
-                        : 'drop-shadow(0 6px 10px rgba(0, 0, 0, 0.16))',
-                      transition: 'filter 0.3s ease',
-                      position: 'relative',
-                      zIndex: 1,
-                    }}
-                  />
+                  <>
+                    <img
+                      src={spriteUrl}
+                      alt={`${displayPokemon.name}${isShiny ? ' shiny' : ''}`}
+                      style={{
+                        height: '175px',
+                        maxHeight: '185px',
+                        width: 'auto',
+                        maxWidth: '100%',
+                        objectFit: 'contain',
+                        filter: isShiny
+                          ? 'drop-shadow(0 6px 12px rgba(234, 179, 8, 0.45))'
+                          : 'drop-shadow(0 6px 10px rgba(0, 0, 0, 0.16))',
+                        transition: 'filter 0.3s ease',
+                        position: 'relative',
+                        zIndex: 1,
+                        animation: isFloating
+                          ? 'pokemonHoverFloat 3.2s ease-in-out infinite'
+                          : 'pokemonIdleBreath 3.4s ease-in-out infinite',
+                        transformOrigin: 'bottom center',
+                      }}
+                    />
+                    {/* Sombra dinámica inferior reactiva */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '4px',
+                        width: '100px',
+                        height: '14px',
+                        borderRadius: '50%',
+                        backgroundColor: '#0f172a',
+                        filter: 'blur(4px)',
+                        animation: isFloating
+                          ? 'shadowPulse 3.2s ease-in-out infinite'
+                          : 'shadowPulse 3.4s ease-in-out infinite',
+                        pointerEvents: 'none',
+                        zIndex: 0,
+                      }}
+                    />
+                  </>
                 ) : (
                   <span style={{ color: '#94a3b8', position: 'relative', zIndex: 1 }}>
                     {UI_TRANSLATIONS[language].noImage}
@@ -1127,6 +1191,12 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
             >
               {/* Micro-patrones vectoriales decorativos en las esquinas según el tipo elemental */}
               <TypeDecorations
+                type={primaryType}
+                color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}
+              />
+
+              {/* Flujo de partículas elementales flotantes de fondo */}
+              <TypeParticles
                 type={primaryType}
                 color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}
               />
