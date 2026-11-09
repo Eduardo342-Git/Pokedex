@@ -59,9 +59,19 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es') => {
 
     const genus = genusEntry?.genus || (lang === 'es' ? 'Pokémon' : 'Pokémon');
 
+    // 3. Extraer variedades (formas alternativas, mega, gmax, etc.)
+    const varieties = Array.isArray(data.varieties)
+      ? data.varieties.map((v) => ({
+          name: v.pokemon.name,
+          url: v.pokemon.url,
+          is_default: v.is_default,
+        }))
+      : [];
+
     return {
       description,
       genus,
+      varieties,
     };
   } catch (error) {
     console.error(`Error al obtener especie/lore de "${pokemonIdOrName}":`, error);
@@ -71,7 +81,34 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es') => {
           ? 'Información de la Pokédex no disponible actualmente.'
           : 'Pokédex information currently unavailable.',
       genus: lang === 'es' ? 'Pokémon Desconocido' : 'Unknown Pokémon',
+      varieties: [],
     };
+  }
+};
+
+const formsCache = {};
+
+/**
+ * Consulta el endpoint de la PokéAPI para obtener los datos completos de una forma específica.
+ * @param {string} pokemonNameOrUrl - URL completa (ej. "https://pokeapi.co/api/v2/pokemon/10033/") o nombre de la forma
+ * @returns {Promise<object>} Objeto completo del Pokémon para esa forma específica
+ */
+export const getPokemonFormData = async (pokemonNameOrUrl) => {
+  const key = String(pokemonNameOrUrl).trim();
+  if (formsCache[key]) return formsCache[key];
+
+  try {
+    const url = key.startsWith('http')
+      ? key
+      : `${BASE_URL}/pokemon/${key.toLowerCase()}`;
+
+    const response = await axios.get(url);
+    formsCache[key] = response.data;
+    return response.data;
+  } catch (error) {
+    throw new Error(`Error al obtener datos de la forma "${pokemonNameOrUrl}": ${error.message}`, {
+      cause: error,
+    });
   }
 };
 

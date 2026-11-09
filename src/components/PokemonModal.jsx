@@ -6,6 +6,7 @@ import {
   getPokemonSpeciesData,
   getAbilityName,
   getPokemonMovesCategorized,
+  getPokemonFormData,
 } from '../services/pokemonService';
 import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
 import { UI_TRANSLATIONS, TYPE_NAMES } from '../utils/translations';
@@ -31,6 +32,8 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
   // Gestión de estados locales en el modal
   const [currentPokemon, setCurrentPokemon] = useState(pokemon);
   const [prevPokemonProp, setPrevPokemonProp] = useState(pokemon);
+  const [activeVariety, setActiveVariety] = useState(null); // guarda los datos del pokemon de la forma activa
+  const [availableVarieties, setAvailableVarieties] = useState([]);
   const [typeRelations, setTypeRelations] = useState({
     strongAgainst: [],
     weakAgainst: [],
@@ -44,18 +47,36 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
   const [activeTab, setActiveTab] = useState('info'); // 'info' | 'moves'
   const prevPokemonNameRef = useRef(currentPokemon?.name);
 
-  // Procesar movimientos categorizados de forma memoizada al cambiar currentPokemon
+  // Forma activa (displayPokemon toma la variedad seleccionada o el Pokémon base)
+  const displayPokemon = activeVariety || currentPokemon;
+
+  const getFormLabel = (rawName, baseName) => {
+    if (rawName === baseName) return language === 'es' ? 'Base' : 'Standard';
+    const clean = rawName.replace(`${baseName}-`, '');
+    if (clean.includes('mega-x')) return 'Mega X';
+    if (clean.includes('mega-y')) return 'Mega Y';
+    if (clean.includes('mega')) return 'Mega';
+    if (clean.includes('gmax')) return 'Gigamax';
+    if (clean.includes('alola')) return 'Alola';
+    if (clean.includes('galar')) return 'Galar';
+    if (clean.includes('hisui')) return 'Hisui';
+    if (clean.includes('paldea')) return 'Paldea';
+    return clean.toUpperCase();
+  };
+
+  // Procesar movimientos categorizados de forma memoizada al cambiar displayPokemon o currentPokemon
   const categorizedMoves = useMemo(() => {
-    if (currentPokemon && currentPokemon.moves) {
-      return getPokemonMovesCategorized(currentPokemon.moves);
-    }
-    return { levelUp: [], machine: [], egg: [] };
-  }, [currentPokemon]);
+    const moves = displayPokemon?.moves?.length
+      ? displayPokemon.moves
+      : currentPokemon?.moves || [];
+    return getPokemonMovesCategorized(moves);
+  }, [displayPokemon, currentPokemon]);
 
   // Sincronizar si cambia la prop pokemon externamente sin efecto en cascada
   if (pokemon !== prevPokemonProp) {
     setPrevPokemonProp(pokemon);
     setCurrentPokemon(pokemon);
+    setActiveVariety(null);
     setIsShiny(false);
   }
 
@@ -70,7 +91,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // Carga reactiva de especie, relaciones y evolución al cambiar currentPokemon o language
+  // Carga reactiva de especie, variedades y evolución al cambiar currentPokemon o language
   useEffect(() => {
     let isMounted = true;
     if (!currentPokemon) return;
@@ -79,29 +100,23 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
       try {
         if (prevPokemonNameRef.current !== currentPokemon.name) {
           prevPokemonNameRef.current = currentPokemon.name;
-          if (isMounted) setIsShiny(false);
+          if (isMounted) {
+            setIsShiny(false);
+            setActiveVariety(null);
+          }
         }
-        setLoadingCombatData(true);
-        const types = currentPokemon.types?.map((t) => t.type.name) || [];
-        const [relations, evolutions, species] = await Promise.all([
-          getPokemonTypeRelations(types),
+        const [evolutions, species] = await Promise.all([
           getPokemonEvolutions(currentPokemon.name),
           getPokemonSpeciesData(currentPokemon.name, language),
         ]);
 
         if (isMounted) {
-          setTypeRelations(
-            relations || { strongAgainst: [], weakAgainst: [], notEffectiveAgainst: [] }
-          );
           setEvolutionChain(evolutions || []);
-          setSpeciesInfo(species || { description: '', genus: '' });
+          setSpeciesInfo(species || { description: '', genus: '', varieties: [] });
+          setAvailableVarieties(species?.varieties || []);
         }
       } catch (error) {
         console.error('Error cargando datos de Pokémon:', error);
-      } finally {
-        if (isMounted) {
-          setLoadingCombatData(false);
-        }
       }
     };
 
@@ -112,15 +127,46 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
     };
   }, [currentPokemon, language]);
 
-  // Carga reactiva de nombres de habilidades traducidas al cambiar currentPokemon o language
+  // Carga reactiva de relaciones de tipo para displayPokemon
   useEffect(() => {
     let isMounted = true;
-    if (!currentPokemon) return;
+    if (!displayPokemon) return;
+
+    const loadTypeRelations = async () => {
+      try {
+        setLoadingCombatData(true);
+        const types = displayPokemon.types?.map((t) => t.type.name) || [];
+        const relations = await getPokemonTypeRelations(types);
+        if (isMounted) {
+          setTypeRelations(
+            relations || { strongAgainst: [], weakAgainst: [], notEffectiveAgainst: [] }
+          );
+        }
+      } catch (error) {
+        console.error('Error cargando relaciones de tipo:', error);
+      } finally {
+        if (isMounted) {
+          setLoadingCombatData(false);
+        }
+      }
+    };
+
+    loadTypeRelations();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [displayPokemon]);
+
+  // Carga reactiva de nombres de habilidades traducidas para displayPokemon
+  useEffect(() => {
+    let isMounted = true;
+    if (!displayPokemon) return;
 
     const loadAbilities = async () => {
       try {
         const translated = await Promise.all(
-          (currentPokemon.abilities || []).map(async (item) => {
+          (displayPokemon.abilities || []).map(async (item) => {
             const name = await getAbilityName(item.ability?.url || item.ability?.name, language);
             return {
               name,
@@ -140,7 +186,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
     return () => {
       isMounted = false;
     };
-  }, [currentPokemon, language]);
+  }, [displayPokemon, language]);
 
   if (!currentPokemon) return null;
 
@@ -158,6 +204,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
       setLoadingCombatData(true);
       const updatedPokemon = await getPokemonDetails(targetName);
       setCurrentPokemon(updatedPokemon);
+      setActiveVariety(null);
       setIsShiny(false);
     } catch (error) {
       console.error('Error al navegar evolución:', error);
@@ -167,7 +214,11 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
   };
 
   const playCry = () => {
-    const audioUrl = currentPokemon.cries?.latest || currentPokemon.cries?.legacy;
+    const audioUrl =
+      displayPokemon.cries?.latest ||
+      displayPokemon.cries?.legacy ||
+      currentPokemon.cries?.latest ||
+      currentPokemon.cries?.legacy;
     if (audioUrl) {
       const audio = new Audio(audioUrl);
       audio.volume = 0.6;
@@ -175,20 +226,25 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
     }
   };
 
-  const hasCry = Boolean(currentPokemon.cries?.latest || currentPokemon.cries?.legacy);
+  const hasCry = Boolean(
+    displayPokemon.cries?.latest ||
+    displayPokemon.cries?.legacy ||
+    currentPokemon.cries?.latest ||
+    currentPokemon.cries?.legacy
+  );
   const formattedId = `#${String(currentPokemon.id).padStart(3, '0')}`;
 
-  // Selección reactiva del sprite según isShiny
+  // Selección reactiva del sprite según isShiny y displayPokemon
   const spriteUrl = isShiny
-    ? currentPokemon.sprites?.other?.['official-artwork']?.front_shiny ||
-      currentPokemon.sprites?.front_shiny
-    : currentPokemon.sprites?.other?.['official-artwork']?.front_default ||
-      currentPokemon.sprites?.front_default;
+    ? displayPokemon.sprites?.other?.['official-artwork']?.front_shiny ||
+      displayPokemon.sprites?.front_shiny
+    : displayPokemon.sprites?.other?.['official-artwork']?.front_default ||
+      displayPokemon.sprites?.front_default;
 
   const totalStats =
-    currentPokemon.stats?.reduce((acc, curr) => acc + curr.base_stat, 0) || 0;
+    displayPokemon.stats?.reduce((acc, curr) => acc + curr.base_stat, 0) || 0;
 
-  const primaryType = currentPokemon.types?.[0]?.type?.name || 'normal';
+  const primaryType = displayPokemon.types?.[0]?.type?.name || 'normal';
   const pastelBg = TYPE_PASTEL_COLORS[primaryType] || '#f8fafc';
   const borderColor = TYPE_BORDER_COLORS[primaryType] || '#cbd5e1';
 
@@ -441,9 +497,59 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                     lineHeight: '1.2',
                   }}
                 >
-                  {currentPokemon.name}
+                  {displayPokemon.name}
                 </h2>
               </div>
+
+              {/* Selector de Formas Alternativas (Mega, Gigamax, Formas Regionales) */}
+              {availableVarieties.length > 1 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '6px',
+                    justifyContent: 'center',
+                    flexWrap: 'wrap',
+                    margin: '6px 0',
+                    position: 'relative',
+                    zIndex: 1,
+                  }}
+                >
+                  {availableVarieties.map((v) => {
+                    const isCurrent = (activeVariety?.name || currentPokemon.name) === v.name;
+                    return (
+                      <button
+                        key={v.name}
+                        type="button"
+                        onClick={async () => {
+                          if (isCurrent) return;
+                          try {
+                            const data = await getPokemonFormData(v.url);
+                            setActiveVariety(data);
+                          } catch (err) {
+                            console.error('Error al cambiar de forma:', err);
+                          }
+                        }}
+                        style={{
+                          padding: '3px 10px',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          borderRadius: '12px',
+                          border: isCurrent
+                            ? `2px solid ${TYPE_BORDER_COLORS[primaryType] || '#0284c7'}`
+                            : '1px solid #cbd5e1',
+                          backgroundColor: isCurrent ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
+                          color: isCurrent ? '#0f172a' : '#64748b',
+                          cursor: 'pointer',
+                          boxShadow: isCurrent ? '0 2px 6px rgba(0,0,0,0.1)' : 'none',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        {getFormLabel(v.name, currentPokemon.name)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Selector Shiny ✨ tipo píldora (encima del sprite) */}
               <div
@@ -507,7 +613,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 {spriteUrl ? (
                   <img
                     src={spriteUrl}
-                    alt={`${currentPokemon.name}${isShiny ? ' shiny' : ''}`}
+                    alt={`${displayPokemon.name}${isShiny ? ' shiny' : ''}`}
                     style={{
                       height: '175px',
                       maxHeight: '185px',
@@ -541,7 +647,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                   zIndex: 1,
                 }}
               >
-                {currentPokemon.types?.map(({ type }) => {
+                {displayPokemon.types?.map(({ type }) => {
                   const color = TYPE_COLORS[type.name] || { bg: '#64748b', text: '#ffffff' };
                   const translatedType = TYPE_NAMES[language]?.[type.name] || type.name;
                   return (
@@ -660,7 +766,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                       color: '#0f172a',
                     }}
                   >
-                    {(currentPokemon.height / 10).toFixed(1)} m
+                    {(displayPokemon.height / 10).toFixed(1)} m
                   </p>
                 </div>
 
@@ -692,7 +798,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                       color: '#0f172a',
                     }}
                   >
-                    {(currentPokemon.weight / 10).toFixed(1)} kg
+                    {(displayPokemon.weight / 10).toFixed(1)} kg
                   </p>
                 </div>
               </div>
@@ -898,7 +1004,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                                 {ab.name} {ab.is_hidden && (language === 'es' ? '(Oculta)' : '(Hidden)')}
                               </span>
                             ))
-                          : currentPokemon.abilities?.map(({ ability, is_hidden }, index) => (
+                          : displayPokemon.abilities?.map(({ ability, is_hidden }, index) => (
                               <span
                                 key={index}
                                 style={{
@@ -1136,7 +1242,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                        {currentPokemon.stats?.map((s) => {
+                        {displayPokemon.stats?.map((s) => {
                           const label = STAT_LABELS[s.stat.name] || s.stat.name.toUpperCase();
                           const val = s.base_stat;
                           const percentage = Math.min(100, (val / 255) * 100);
