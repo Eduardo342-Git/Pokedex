@@ -564,23 +564,28 @@ export const getShowdownSlug = (pokemonName) => {
 };
 
 /**
- * Resuelve la URL animada 3D en alta calidad desde Pokémon Showdown (/sprites/ani/ y /sprites/ani-shiny/)
+ * Resuelve la ilustración oficial en alta resolución / 3D Home de PokéAPI
  */
-export const getModernAnimatedSprite = (pokemon, isShiny = false) => {
+export const getHighResArtwork = (pokemon, isShiny = false) => {
   if (!pokemon) return '';
-
-  // Normalización precisa del slug para Showdown
-  const slug = pokemon.name.toLowerCase().trim()
-    .replace(/[\s.':]/g, '')
-    .replace(/-normal$/, '')
-    .replace(/-standard$/, '')
-    .replace(/-altered$/, '');
-
-  const folder = isShiny ? 'ani-shiny' : 'ani';
-  return `https://play.pokemonshowdown.com/sprites/${folder}/${slug}.gif`;
+  if (isShiny) {
+    return (
+      pokemon.sprites?.other?.['official-artwork']?.front_shiny ||
+      pokemon.sprites?.other?.home?.front_shiny ||
+      pokemon.sprites?.front_shiny ||
+      ''
+    );
+  }
+  return (
+    pokemon.sprites?.other?.['official-artwork']?.front_default ||
+    pokemon.sprites?.other?.home?.front_default ||
+    pokemon.sprites?.front_default ||
+    ''
+  );
 };
 
-export const getAnimatedSpriteUrl = getModernAnimatedSprite;
+export const getModernAnimatedSprite = getHighResArtwork;
+export const getAnimatedSpriteUrl = getHighResArtwork;
 
 const moveCache = new Map();
 

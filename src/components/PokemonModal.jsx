@@ -5,7 +5,7 @@ import {
   getPokemonSpeciesData,
   getAbilityName,
   getPokemonFormData,
-  getModernAnimatedSprite,
+  getHighResArtwork,
   translateMovesBatch,
 } from '../services/pokemonService';
 import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
@@ -424,29 +424,37 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
             transform: scale(1);
           }
         }
-        @keyframes pokemonIdleBreath {
+        /* Respiración orgánica para criaturas terrestres */
+        @keyframes pokemonLivelyBreath {
           0%, 100% {
-            transform: scaleY(1) scaleX(1);
+            transform: scaleY(1) scaleX(1) translateY(0);
           }
-          50% {
-            transform: scaleY(1.03) scaleX(0.985);
+          40% {
+            transform: scaleY(1.055) scaleX(0.97) translateY(-3px);
+          }
+          65% {
+            transform: scaleY(0.985) scaleX(1.015) translateY(1px);
           }
         }
-        @keyframes pokemonHoverFloat {
+
+        /* Flotación levitante para Pokémon aéreos / voladores */
+        @keyframes pokemonLivelyFloat {
           0%, 100% {
-            transform: translateY(0px);
+            transform: translateY(0px) rotate(0deg);
           }
           50% {
-            transform: translateY(-8px);
+            transform: translateY(-12px) rotate(1.2deg);
           }
         }
-        @keyframes shadowPulse {
+
+        /* Sombra dinámica sincronizada */
+        @keyframes shadowLivelyPulse {
           0%, 100% {
-            transform: scale(1);
-            opacity: 0.25;
+            transform: scaleX(1) scaleY(1);
+            opacity: 0.28;
           }
           50% {
-            transform: scale(0.85);
+            transform: scaleX(0.82) scaleY(0.8);
             opacity: 0.12;
           }
         }
@@ -854,6 +862,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
               <div
                 style={{
                   display: 'flex',
+                  flexDirection: 'column',
                   justifyContent: 'center',
                   alignItems: 'center',
                   margin: '4px 0',
@@ -869,45 +878,33 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                 />
                 <img
                   key={`${displayPokemon.id}-${displayPokemon.name}-${isShiny}`}
-                  src={getModernAnimatedSprite(displayPokemon, isShiny)}
+                  src={getHighResArtwork(displayPokemon, isShiny)}
                   alt={displayPokemon.name}
-                  onError={(e) => {
-                    // Fallback prioritario: Arte oficial 3D HD de PokéAPI (SVG / Home / Official Artwork)
-                    const highResFallback = isShiny
-                      ? (displayPokemon.sprites?.other?.home?.front_shiny || displayPokemon.sprites?.other?.['official-artwork']?.front_shiny)
-                      : (displayPokemon.sprites?.other?.home?.front_default || displayPokemon.sprites?.other?.['official-artwork']?.front_default);
-
-                    if (highResFallback && e.currentTarget.src !== highResFallback) {
-                      e.currentTarget.src = highResFallback;
-                    }
-                  }}
                   style={{
-                    height: 'clamp(140px, 14vw, 170px)',
-                    maxHeight: '175px',
+                    height: 'clamp(155px, 16vw, 190px)',
+                    maxHeight: '195px',
                     width: 'auto',
                     objectFit: 'contain',
-                    imageRendering: 'auto', // Suavizado nativo vectorial limpio
-                    filter: 'drop-shadow(0 6px 14px rgba(0, 0, 0, 0.15))',
+                    filter: 'drop-shadow(0 8px 16px rgba(0, 0, 0, 0.18))',
+                    animation: isFloating
+                      ? 'pokemonLivelyFloat 2.8s ease-in-out infinite'
+                      : 'pokemonLivelyBreath 2.6s ease-in-out infinite',
+                    transformOrigin: 'bottom center',
                     position: 'relative',
                     zIndex: 2,
-                    transition: 'transform 0.3s ease',
+                    pointerEvents: 'none',
                   }}
                 />
-                {/* Sombra dinámica inferior reactiva */}
+                {/* Sombra dinámica sincronizada */}
                 <div
                   style={{
-                    position: 'absolute',
-                    bottom: '4px',
-                    width: '100px',
+                    width: '90px',
                     height: '14px',
                     borderRadius: '50%',
                     backgroundColor: '#0f172a',
-                    filter: 'blur(4px)',
-                    animation: isFloating
-                      ? 'shadowPulse 3.2s ease-in-out infinite'
-                      : 'shadowPulse 3.4s ease-in-out infinite',
-                    pointerEvents: 'none',
-                    zIndex: 0,
+                    margin: '-6px auto 0 auto',
+                    animation: 'shadowLivelyPulse 2.8s ease-in-out infinite',
+                    zIndex: 1,
                   }}
                 />
               </div>
