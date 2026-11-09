@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import {
   getPokemonDetails,
   getPokemonTypeRelations,
   getPokemonSpeciesData,
   getAbilityName,
-  getPokemonMovesCategorized,
   getPokemonFormData,
+  getAnimatedSpriteUrl,
+  translateMovesBatch,
 } from '../services/pokemonService';
 import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
 import { UI_TRANSLATIONS, TYPE_NAMES } from '../utils/translations';
@@ -47,35 +48,6 @@ const getBarColor = (value) => {
   return '#06b6d4';
 };
 
-const getPokemonDisplaySprite = (pokemon, isShiny) => {
-  if (!pokemon) return '';
-
-  // Ruta oficial de GIFs animados de 5ta generación en PokéAPI:
-  const animatedSprites = pokemon.sprites?.versions?.['generation-v']?.['black-white']?.animated;
-
-  if (isShiny && animatedSprites?.front_shiny) {
-    return animatedSprites.front_shiny;
-  }
-  if (!isShiny && animatedSprites?.front_default) {
-    return animatedSprites.front_default;
-  }
-
-  // Fallback de alta resolución para criaturas modernas o formas sin GIF:
-  if (isShiny) {
-    return (
-      pokemon.sprites?.other?.['official-artwork']?.front_shiny ||
-      pokemon.sprites?.front_shiny ||
-      pokemon.sprites?.other?.home?.front_shiny ||
-      ''
-    );
-  }
-  return (
-    pokemon.sprites?.other?.['official-artwork']?.front_default ||
-    pokemon.sprites?.front_default ||
-    ''
-  );
-};
-
 function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
   // Gestión de estados locales en el modal
   const [currentPokemon, setCurrentPokemon] = useState(pokemon);
@@ -95,6 +67,10 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
   const [lensFlash, setLensFlash] = useState(false);
   const [translatedAbilities, setTranslatedAbilities] = useState([]);
   const [activeTab, setActiveTab] = useState('info'); // 'info' | 'moves'
+  const [fallbackSrc, setFallbackSrc] = useState(null);
+  const [prevSpriteKey, setPrevSpriteKey] = useState('');
+  const [translatedMoves, setTranslatedMoves] = useState([]);
+  const [isLoadingMoves, setIsLoadingMoves] = useState(false);
   const prevPokemonNameRef = useRef(currentPokemon?.name);
   const currentPokemonRef = useRef(currentPokemon);
 
@@ -102,7 +78,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
     currentPokemonRef.current = currentPokemon;
   }, [currentPokemon]);
 
-  const isLoading = loadingCombatData || loadingSpecies;
+  const isLoading = loadingCombatData || loadingSpecies || isLoadingMoves;
 
   const isRare = Boolean(
     speciesInfo?.isLegendary ||
@@ -113,6 +89,39 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
 
   // Forma activa (displayPokemon toma la variedad seleccionada o el Pokémon base)
   const displayPokemon = activeVariety || currentPokemon;
+
+  // Sincronización del sprite animado con reseteo de fallback reactivo
+  const spriteKey = `${displayPokemon?.name}-${isShiny}`;
+  if (spriteKey !== prevSpriteKey) {
+    setPrevSpriteKey(spriteKey);
+    setFallbackSrc(null);
+  }
+  const spriteSrc = fallbackSrc || getAnimatedSpriteUrl(displayPokemon, isShiny);
+
+  // Carga reactiva de movimientos traducidos oficiales al cambiar displayPokemon, activeTab o language
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMoves = async () => {
+      if (!displayPokemon?.moves || (activeTab !== 'moves' && activeTab !== 'movimientos')) return;
+
+      setIsLoadingMoves(true);
+      // Tomamos los movimientos relevantes (primeros 45 para evitar cuello de botella de red)
+      const movesToProcess = displayPokemon.moves.slice(0, 45);
+      const resolved = await translateMovesBatch(movesToProcess, language);
+
+      if (isMounted) {
+        setTranslatedMoves(resolved);
+        setIsLoadingMoves(false);
+      }
+    };
+
+    loadMoves();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [displayPokemon?.name, displayPokemon?.moves, activeTab, language]);
 
   const getFormLabel = (rawName, baseName) => {
     if (rawName === baseName) return language === 'es' ? 'Base' : 'Standard';
@@ -127,14 +136,6 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
     if (clean.includes('paldea')) return 'Paldea';
     return clean.toUpperCase();
   };
-
-  // Procesar movimientos categorizados de forma memoizada al cambiar displayPokemon o currentPokemon
-  const categorizedMoves = useMemo(() => {
-    const moves = displayPokemon?.moves?.length
-      ? displayPokemon.moves
-      : currentPokemon?.moves || [];
-    return getPokemonMovesCategorized(moves);
-  }, [displayPokemon, currentPokemon]);
 
   // Sincronizar si cambia la prop pokemon externamente sin efecto en cascada
   if (pokemon !== prevPokemonProp) {
@@ -344,10 +345,6 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
     currentPokemon.cries?.legacy
   );
   const formattedId = `#${String(currentPokemon.id).padStart(3, '0')}`;
-
-  // Selección reactiva del sprite según isShiny y displayPokemon (priorizando GIFs animados nativos de 5ta generación)
-  const spriteUrl = getPokemonDisplaySprite(displayPokemon, isShiny);
-  const isAnimatedGif = Boolean(spriteUrl?.includes('.gif'));
 
   const totalStats =
     displayPokemon.stats?.reduce((acc, curr) => acc + curr.base_stat, 0) || 0;
@@ -880,30 +877,40 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   opacity={0.30}
                   color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}
                 />
-                {spriteUrl ? (
+                {spriteSrc ? (
                   <>
                     <img
-                      src={spriteUrl}
-                      alt={`${displayPokemon.name}${isShiny ? ' shiny' : ''}`}
+                      key={`${displayPokemon.id}-${displayPokemon.name}-${isShiny}`}
+                      src={spriteSrc}
+                      alt={displayPokemon.name}
+                      onError={() => {
+                        // Fallback 1: GIF animado clásico de Gen 5 de PokéAPI
+                        const gen5Gif = isShiny
+                          ? displayPokemon.sprites?.versions?.['generation-v']?.['black-white']?.animated?.front_shiny
+                          : displayPokemon.sprites?.versions?.['generation-v']?.['black-white']?.animated?.front_default;
+
+                        // Fallback 2: Arte oficial de alta resolución
+                        const officialArt = isShiny
+                          ? (displayPokemon.sprites?.other?.['official-artwork']?.front_shiny || displayPokemon.sprites?.front_shiny)
+                          : (displayPokemon.sprites?.other?.['official-artwork']?.front_default || displayPokemon.sprites?.front_default);
+
+                        if (spriteSrc !== gen5Gif && gen5Gif) {
+                          setFallbackSrc(gen5Gif);
+                        } else if (spriteSrc !== officialArt && officialArt) {
+                          setFallbackSrc(officialArt);
+                        }
+                      }}
                       style={{
-                        height: isAnimatedGif ? '150px' : '175px',
-                        maxHeight: isAnimatedGif ? '160px' : '185px',
+                        height: 'clamp(145px, 15vw, 175px)',
+                        maxHeight: '180px',
                         width: 'auto',
-                        maxWidth: '100%',
                         objectFit: 'contain',
-                        imageRendering: isAnimatedGif ? 'pixelated' : 'auto',
                         filter: isShiny
                           ? 'drop-shadow(0 6px 12px rgba(234, 179, 8, 0.45))'
                           : 'drop-shadow(0 6px 10px rgba(0, 0, 0, 0.16))',
-                        transition: 'filter 0.3s ease',
                         position: 'relative',
                         zIndex: 2,
-                        animation: isAnimatedGif
-                          ? 'none'
-                          : isFloating
-                          ? 'pokemonHoverFloat 3.2s ease-in-out infinite'
-                          : 'pokemonIdleBreath 3.4s ease-in-out infinite',
-                        transformOrigin: 'bottom center',
+                        transition: 'all 0.3s ease',
                       }}
                     />
                     {/* Sombra dinámica inferior reactiva */}
@@ -1667,174 +1674,82 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                       maxHeight: '340px',
                       overflowY: 'auto',
                       paddingRight: '6px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '12px',
                     }}
                   >
-                    {/* 1. Aprende por Nivel */}
-                    <div
-                      style={{
-                        backgroundColor: '#ffffff',
-                        borderRadius: '10px',
-                        padding: '10px 12px',
-                        border: '1px solid #e2e8f0',
-                      }}
-                    >
+                    {isLoadingMoves ? (
                       <div
                         style={{
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          padding: '40px 10px',
                           color: '#64748b',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                          marginBottom: '8px',
+                          fontSize: '13px',
+                          fontWeight: 600,
                         }}
                       >
-                        📈 {language === 'es' ? 'Aprende por Nivel' : 'Learned by Level'}
-                      </div>
-                      {categorizedMoves.levelUp && categorizedMoves.levelUp.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          {categorizedMoves.levelUp.map((m, idx) => (
-                            <div
-                              key={`${m.name}-${m.level}-${idx}`}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                backgroundColor: 'rgba(248, 250, 252, 0.9)',
-                                padding: '4px 8px',
-                                borderRadius: '6px',
-                                border: '1px solid #e2e8f0',
-                                fontSize: '12px',
-                              }}
-                            >
-                              <span
-                                style={{
-                                  backgroundColor: '#0284c7',
-                                  color: '#ffffff',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  fontWeight: '700',
-                                  fontSize: '10px',
-                                }}
-                              >
-                                {language === 'es' ? `Nv. ${m.level}` : `Lv. ${m.level}`}
-                              </span>
-                              <span
-                                style={{
-                                  fontWeight: '600',
-                                  color: '#1e293b',
-                                  textTransform: 'capitalize',
-                                }}
-                              >
-                                {m.name.replace(/-/g, ' ')}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
-                          {language === 'es' ? 'Ninguno' : 'None'}
+                        <span
+                          style={{
+                            width: '10px',
+                            height: '10px',
+                            borderRadius: '50%',
+                            backgroundColor: '#0284c7',
+                            animation: 'lensBreathe 1s infinite',
+                          }}
+                        />
+                        <span>
+                          {language === 'es' ? 'Cargando movimientos traducidos...' : 'Loading moves...'}
                         </span>
-                      )}
-                    </div>
-
-                    {/* 2. Aprende por MT / MO */}
-                    <div
-                      style={{
-                        backgroundColor: '#ffffff',
-                        borderRadius: '10px',
-                        padding: '10px 12px',
-                        border: '1px solid #e2e8f0',
-                      }}
-                    >
+                      </div>
+                    ) : translatedMoves && translatedMoves.length > 0 ? (
                       <div
                         style={{
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
-                          color: '#64748b',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                          marginBottom: '8px',
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                          gap: '8px',
+                          maxHeight: '280px',
+                          overflowY: 'auto',
+                          padding: '6px',
                         }}
                       >
-                        💿 {language === 'es' ? 'Aprende por MT / MO' : 'Learned by TM / HM'}
-                      </div>
-                      {categorizedMoves.machine && categorizedMoves.machine.length > 0 ? (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                          {categorizedMoves.machine.map((m, idx) => (
+                        {translatedMoves.map((item, idx) => (
+                          <div
+                            key={`${item.rawName}-${idx}`}
+                            style={{
+                              backgroundColor: '#ffffff',
+                              border: `1px solid ${TYPE_BORDER_COLORS[primaryType] || '#cbd5e1'}40`,
+                              borderRadius: '8px',
+                              padding: '6px 8px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                            }}
+                          >
                             <span
-                              key={`${m.name}-${idx}`}
                               style={{
-                                backgroundColor: '#f1f5f9',
-                                color: '#334155',
-                                border: '1px solid #cbd5e1',
-                                padding: '3px 8px',
-                                borderRadius: '6px',
-                                fontSize: '11px',
+                                fontSize: '11.5px',
                                 fontWeight: '600',
+                                color: '#1e293b',
                                 textTransform: 'capitalize',
                               }}
                             >
-                              {m.name.replace(/-/g, ' ')}
+                              {item.displayName}
                             </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
-                          {language === 'es' ? 'Ninguno' : 'None'}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* 3. Movimientos Huevo */}
-                    <div
-                      style={{
-                        backgroundColor: '#ffffff',
-                        borderRadius: '10px',
-                        padding: '10px 12px',
-                        border: '1px solid #e2e8f0',
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
-                          color: '#64748b',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                          marginBottom: '8px',
-                        }}
-                      >
-                        🥚 {language === 'es' ? 'Movimientos Huevo' : 'Egg Moves'}
+                            {item.levelLearnedAt > 0 && (
+                              <span style={{ fontSize: '9.5px', color: '#64748b', fontWeight: '500' }}>
+                                {language === 'es' ? `Nv. ${item.levelLearnedAt}` : `Lv. ${item.levelLearnedAt}`}
+                              </span>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                      {categorizedMoves.egg && categorizedMoves.egg.length > 0 ? (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                          {categorizedMoves.egg.map((m, idx) => (
-                            <span
-                              key={`${m.name}-${idx}`}
-                              style={{
-                                backgroundColor: '#fdf4ff',
-                                color: '#86198f',
-                                border: '1px solid #f0abfc',
-                                padding: '3px 8px',
-                                borderRadius: '6px',
-                                fontSize: '11px',
-                                fontWeight: '600',
-                                textTransform: 'capitalize',
-                              }}
-                            >
-                              {m.name.replace(/-/g, ' ')}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
-                          {language === 'es' ? 'Ninguno' : 'None'}
-                        </span>
-                      )}
-                    </div>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', padding: '12px' }}>
+                        {language === 'es' ? 'No se encontraron movimientos disponibles.' : 'No moves available.'}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>

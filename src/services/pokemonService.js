@@ -539,3 +539,88 @@ export const getPokemonMovesCategorized = (movesList) => {
 
   return result;
 };
+
+/**
+ * Convierte el nombre de PokéAPI al formato de archivo de Showdown
+ * Ej: 'tapu-koko' -> 'tapukoko', 'mr-mime' -> 'mrmime', 'charizard-mega-x' -> 'charizard-megax', 'venusaur-gmax' -> 'venusaur-gmax'
+ */
+export const getShowdownSlug = (pokemonName) => {
+  if (!pokemonName) return '';
+  let slug = pokemonName.toLowerCase().trim();
+
+  // Excepciones y reemplazos comunes de formato en Showdown:
+  slug = slug
+    .replace(/[\s.':]/g, '')
+    .replace(/-normal$/, '')
+    .replace(/-standard$/, '')
+    .replace(/-incarnate$/, '')
+    .replace(/-altered$/, '')
+    .replace(/-average$/, '')
+    .replace(/-shield$/, '')
+    .replace(/-50$/, '')
+    .replace(/-disguised$/, '');
+
+  return slug;
+};
+
+/**
+ * Resuelve la URL animada con la fuente primaria de Pokémon Showdown (modelos 3D y GIFs Gen 1 a Gen 9 + Megas + Gmax)
+ */
+export const getAnimatedSpriteUrl = (pokemon, isShiny) => {
+  if (!pokemon) return '';
+
+  const slug = getShowdownSlug(pokemon.name);
+  const folder = isShiny ? 'ani-shiny' : 'ani';
+
+  return `https://play.pokemonshowdown.com/sprites/${folder}/${slug}.gif`;
+};
+
+const moveCache = new Map();
+
+/**
+ * Obtiene el nombre localizado oficial de un movimiento desde PokéAPI (/move/{id_o_nombre})
+ */
+export const getTranslatedMoveName = async (moveName, lang = 'es') => {
+  if (!moveName) return '';
+
+  const clean = String(moveName).toLowerCase().trim();
+  const cacheKey = `${clean}-${lang}`;
+  if (moveCache.has(cacheKey)) {
+    return moveCache.get(cacheKey);
+  }
+
+  try {
+    const response = await axios.get(`${BASE_URL}/move/${clean}`);
+    const data = response.data;
+
+    // Buscar traducción oficial en el idioma solicitado:
+    const localized = data.names?.find((n) => n.language?.name === lang);
+    const enName = data.names?.find((n) => n.language?.name === 'en');
+    const resolvedName = localized ? localized.name : (enName ? enName.name : clean.replace(/-/g, ' '));
+
+    moveCache.set(cacheKey, resolvedName);
+    return resolvedName;
+  } catch {
+    // Fallback elegante capitalizado en caso de error o límite de red:
+    const fallback = clean.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    return fallback;
+  }
+};
+
+/**
+ * Traduce una lista de movimientos por lotes (ej. los primeros 25-45 visibles)
+ */
+export const translateMovesBatch = async (moveList, lang = 'es') => {
+  if (!Array.isArray(moveList)) return [];
+  const promises = moveList.map(async (m) => {
+    const rawName = typeof m === 'string' ? m : m.move?.name || m.name;
+    const translated = await getTranslatedMoveName(rawName, lang);
+    return {
+      rawName,
+      displayName: translated,
+      learnMethod: m.version_group_details?.[0]?.move_learn_method?.name,
+      levelLearnedAt: m.version_group_details?.[0]?.level_learned_at ?? 0,
+    };
+  });
+  return Promise.all(promises);
+};
