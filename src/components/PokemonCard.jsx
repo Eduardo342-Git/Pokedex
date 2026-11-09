@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getPokemonDetails } from '../services/pokemonService';
-import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
+import { TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
 import { TYPE_NAMES } from '../utils/translations';
 import PokeballWatermark from './PokeballWatermark';
 import TypeDecorations from './TypeDecorations';
@@ -34,19 +34,25 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
   const pastelBg = TYPE_PASTEL_COLORS[primaryType] || '#f8fafc';
 
   const cardStyle = {
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '12px 10px 14px 10px',
+    borderRadius: '18px',
     backgroundColor: pastelBg,
-    border: `3px solid ${borderColor}`,
-    width: '100%',
-    textAlign: 'center',
+    border: `2px solid ${borderColor}`,
     cursor: pokemon ? 'pointer' : 'default',
-    transition: 'all 0.25s ease',
+    boxSizing: 'border-box',
+    minHeight: '195px',
+    overflow: 'hidden',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
     transform: isHovered && pokemon ? 'translateY(-4px)' : 'translateY(0)',
     boxShadow:
       isHovered && pokemon
         ? `0 8px 24px ${borderColor}55`
         : `0 4px 14px ${borderColor}30`,
-    position: 'relative',
-    overflow: 'visible', /* Permite que el sprite respire */
     userSelect: 'none',
   };
 
@@ -55,10 +61,18 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
       <div
         className="pokemon-card"
         style={{
-          backgroundColor: '#f8fafc',
-          border: '3px solid #e2e8f0',
-          width: '100%',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
           justifyContent: 'center',
+          backgroundColor: '#f8fafc',
+          border: '2px solid #e2e8f0',
+          borderRadius: '18px',
+          minHeight: '195px',
+          width: '100%',
+          padding: '12px 10px 14px 10px',
+          boxSizing: 'border-box',
           cursor: 'default',
         }}
       >
@@ -95,34 +109,34 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
       {/* Micro-patrones vectoriales decorativos en las esquinas según el tipo elemental */}
       <TypeDecorations type={primaryType} color={TYPE_BORDER_COLORS[primaryType]} />
 
-      {/* Número (#001): fuente monoespaciada legible */}
+      {/* Encabezado: #ID */}
       <span
         style={{
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          fontSize: '12.5px',
+          fontSize: '11px',
           fontWeight: '700',
           color: '#475569',
           letterSpacing: '0.05em',
-          position: 'relative',
           zIndex: 1,
         }}
       >
         {formattedId}
       </span>
 
-      {/* Sprite / Imagen del Pokémon con Pokéball concéntrica */}
+      {/* Sprite e Ilustración Central con Halo */}
       <div
         style={{
-          width: '100%',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
           position: 'relative',
-          margin: '4px 0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '100%',
+          height: '100px',
+          zIndex: 1,
         }}
       >
         <PokeballWatermark
-          size="105px"
+          size="85px"
           opacity={isHovered ? 0.38 : 0.30}
           rotate={isHovered ? 25 : 0}
           scale={isHovered ? 1.05 : 1}
@@ -133,68 +147,66 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
             src={spriteUrl}
             alt={pokemon.name}
             style={{
+              maxHeight: '95px',
+              maxWidth: '95px',
+              objectFit: 'contain',
               filter: 'drop-shadow(0 6px 8px rgba(0, 0, 0, 0.16))',
-              imageRendering: 'auto',
               position: 'relative',
               zIndex: 1,
             }}
             loading="lazy"
           />
         ) : (
-          <div style={{ width: '85px', height: '85px', marginTop: '4px', position: 'relative', zIndex: 1 }} />
+          <div style={{ width: '85px', height: '85px', position: 'relative', zIndex: 1 }} />
         )}
       </div>
 
-      {/* Nombre: en mayúsculas, semibold estilizado con translate="no" */}
-      <h3
+      {/* Nombre del Pokémon */}
+      <span
         translate="no"
         className="notranslate"
         style={{
-          textTransform: 'uppercase',
-          fontWeight: '600',
-          letterSpacing: '0.5px',
           fontSize: '13px',
+          fontWeight: '800',
+          textTransform: 'uppercase',
           color: '#1e293b',
-          margin: '4px 0',
-          wordBreak: 'break-word',
-          lineHeight: '1.2',
-          position: 'relative',
+          letterSpacing: '0.5px',
           zIndex: 1,
+          margin: '4px 0 6px 0',
+          wordBreak: 'break-word',
+          textAlign: 'center',
+          lineHeight: '1.2',
         }}
       >
         {pokemon.name}
-      </h3>
+      </span>
 
-      {/* Badges de Tipos traducidos */}
+      {/* Badges de Tipos: Integrados en el flujo normal (NUNCA en absolute fuera del cuadro) */}
       <div
         style={{
           display: 'flex',
           gap: '4px',
-          flexWrap: 'wrap',
           justifyContent: 'center',
-          alignItems: 'center',
-          position: 'relative',
+          flexWrap: 'wrap',
           zIndex: 1,
-          marginTop: '2px',
+          width: '100%',
         }}
       >
         {pokemon.types?.map(({ type }) => {
-          const color = TYPE_COLORS[type.name] || { bg: '#64748b', text: '#ffffff' };
           const translatedName = TYPE_NAMES[language]?.[type.name] || type.name;
 
           return (
             <span
               key={type.name}
               style={{
-                backgroundColor: color.bg,
-                color: color.text,
-                padding: '3px 8px',
-                borderRadius: '10px',
-                fontSize: '11px',
+                fontSize: '9.5px',
                 fontWeight: '700',
+                padding: '2px 8px',
+                borderRadius: '8px',
                 textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                color: '#ffffff',
+                backgroundColor: TYPE_BORDER_COLORS[type.name] || '#64748b',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
               }}
             >
               {translatedName}

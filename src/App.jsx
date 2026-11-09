@@ -10,9 +10,8 @@ function App() {
 
   const [language, setLanguage] = useState('es');
   const [selectedRegion, setSelectedRegion] = useState('all');
-  const [limit, setLimit] = useState(
-    typeof window !== 'undefined' && window.innerWidth >= 1024 ? 21 : 12
-  );
+  const ITEMS_PER_PAGE = 24;
+  const [limit] = useState(ITEMS_PER_PAGE);
   const [pokemonList, setPokemonList] = useState([]);
   const [page, setPage] = useState(1);
   const [inputPage, setInputPage] = useState(1);
@@ -23,39 +22,6 @@ function App() {
 
   // Catálogo completo para búsqueda instantánea en memoria
   const [allPokemons, setAllPokemons] = useState([]);
-
-  // Ajuste del límite de tarjetas por pantalla (21 en escritorio: 7 cols x 3 rows)
-  const updateLimitFromContainer = () => {
-    if (typeof window === 'undefined') return;
-
-    if (window.innerWidth < 768) {
-      setLimit(12);
-      return;
-    }
-
-    if (window.innerWidth < 1024) {
-      setLimit(15);
-      return;
-    }
-
-    // Escritorio (>= 1024): 7 columnas x 3 filas = 21 Pokémon exactos
-    setLimit(21);
-  };
-
-  // Observador de tamaño sobre el contenedor real
-  useEffect(() => {
-    const container = gridContainerRef.current;
-    if (!container) return;
-
-    const observer = new ResizeObserver(() => {
-      updateLimitFromContainer();
-    });
-
-    observer.observe(container);
-    updateLimitFromContainer();
-
-    return () => observer.disconnect();
-  }, []);
 
   // Cargar catálogo global en segundo plano al montar la aplicación
   useEffect(() => {

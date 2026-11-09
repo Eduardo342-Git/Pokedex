@@ -66,22 +66,44 @@ body {
 /* Reglas responsivas para la cuadrícula */
 .pokemon-grid-container {
   display: grid;
-  width: 100%;
-  max-width: 1360px;
+  width: 94%;
+  max-width: 1680px; /* Se expande de forma elegante en pantallas 1080p y 2K */
   margin: 0 auto;
-  padding: 16px 20px;
+  padding: 16px 0 28px 0;
   box-sizing: border-box;
   gap: 16px;
-  /* En pantallas grandes genera columnas de mínimo 190px (5 a 6 columnas), nunca tiras estrechas */
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  /* Genera columnas estables y proporcionales */
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 }
 
-/* Móvil estrecho: 2 columnas perfectas */
+/* Pantallas ultrawide o monitores grandes (6 columnas parejas fijas) */
+@media (min-width: 1440px) {
+  .pokemon-grid-container {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/* Laptops / Pantallas medianas (4 columnas parejas fijas) */
+@media (min-width: 992px) and (max-width: 1439px) {
+  .pokemon-grid-container {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Tablets (3 columnas) */
+@media (min-width: 641px) and (max-width: 991px) {
+  .pokemon-grid-container {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Móvil: 2 columnas perfectas de borde a borde */
 @media (max-width: 640px) {
   .pokemon-grid-container {
+    width: 94%;
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
-    padding: 10px;
+    padding: 10px 0 20px 0;
   }
 }
 
