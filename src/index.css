@@ -118,6 +118,23 @@ body {
   background-color: rgba(225, 29, 72, 0.7);
 }
 
+/* Animación de despliegue vertical de la Pokédex */
+@keyframes pokedexOpenVertical {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) scaleY(0.1);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02) scaleY(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) scaleY(1);
+  }
+}
+
+
 
 
 

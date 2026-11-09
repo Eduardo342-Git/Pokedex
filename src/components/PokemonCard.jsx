@@ -133,8 +133,8 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
         }}
       >
         <PokeballWatermark
-          size="78%"
-          opacity={isHovered ? 0.36 : 0.28}
+          size="60%"
+          opacity={isHovered ? 0.38 : 0.30}
           rotate={isHovered ? 25 : 0}
           scale={isHovered ? 1.05 : 1}
           color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}

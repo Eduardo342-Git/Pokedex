@@ -208,6 +208,24 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
         boxSizing: 'border-box',
       }}
     >
+      {/* Estilos para animación de despliegue vertical de la Pokédex */}
+      <style>{`
+        @keyframes pokedexOpenVertical {
+          0% {
+            opacity: 0;
+            transform: scale(0.92) scaleY(0.1);
+          }
+          60% {
+            opacity: 1;
+            transform: scale(1.02) scaleY(1.03);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) scaleY(1);
+          }
+        }
+      `}</style>
+
       {/* Carcasa Principal Ancha de la Pokédex Doble Pantalla Abatible */}
       <div
         onClick={(e) => e.stopPropagation()}
@@ -228,6 +246,8 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
           boxSizing: 'border-box',
           fontFamily: 'system-ui, -apple-system, sans-serif',
           color: '#0f172a',
+          animation: 'pokedexOpenVertical 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+          transformOrigin: 'center center',
         }}
       >
         {/* 1. Cabecera Superior: Gema LED Cian, Luces de Estado y Botón Cerrar */}

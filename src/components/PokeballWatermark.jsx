@@ -1,6 +1,6 @@
 const PokeballWatermark = ({
-  size = '78%',
-  opacity = 0.28,
+  size = '60%',
+  opacity = 0.30,
   color = '#ffffff',
   rotate = 0,
   scale = 1,

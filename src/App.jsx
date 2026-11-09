@@ -118,16 +118,25 @@ function App() {
     setInputPage(1);
   };
 
-  // Búsqueda global instantánea en memoria (por prefijos o fragmentos)
-  const query = search.trim().toLowerCase();
+  // Búsqueda global instantánea en memoria (soporta nombres e IDs con/sin # o ceros a la izquierda)
+  const query = search.trim().toLowerCase().replace(/#/g, '');
   const isSearchActive = query !== '';
+  const isNumeric = !isNaN(query) && query !== '';
+  const numericQuery = isNumeric ? parseInt(query, 10).toString() : null;
 
   const matchedPokemons = useMemo(() => {
-    if (!query) return [];
-    return allPokemons
-      .filter((p) => p.name.toLowerCase().includes(query))
-      .slice(0, 18);
-  }, [allPokemons, query]);
+    if (!isSearchActive) return [];
+    return allPokemons.filter((p) => {
+      // Extraer el ID real de la URL de PokéAPI: "https://pokeapi.co/api/v2/pokemon/1/"
+      const urlParts = p.url ? p.url.split('/').filter(Boolean) : [];
+      const pId = urlParts[urlParts.length - 1];
+
+      if (isNumeric) {
+        return pId === numericQuery || pId.startsWith(numericQuery);
+      }
+      return p.name.toLowerCase().includes(query);
+    });
+  }, [allPokemons, isSearchActive, isNumeric, numericQuery, query]);
 
   const goToPage = (newPage) => {
     const valid = Math.max(1, Math.min(newPage, totalPages));
