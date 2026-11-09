@@ -564,16 +564,23 @@ export const getShowdownSlug = (pokemonName) => {
 };
 
 /**
- * Resuelve la URL animada con la fuente primaria de Pokémon Showdown (modelos 3D y GIFs Gen 1 a Gen 9 + Megas + Gmax)
+ * Resuelve la URL animada 3D en alta calidad desde Pokémon Showdown (/sprites/ani/ y /sprites/ani-shiny/)
  */
-export const getAnimatedSpriteUrl = (pokemon, isShiny) => {
+export const getModernAnimatedSprite = (pokemon, isShiny = false) => {
   if (!pokemon) return '';
 
-  const slug = getShowdownSlug(pokemon.name);
-  const folder = isShiny ? 'ani-shiny' : 'ani';
+  // Normalización precisa del slug para Showdown
+  const slug = pokemon.name.toLowerCase().trim()
+    .replace(/[\s.':]/g, '')
+    .replace(/-normal$/, '')
+    .replace(/-standard$/, '')
+    .replace(/-altered$/, '');
 
+  const folder = isShiny ? 'ani-shiny' : 'ani';
   return `https://play.pokemonshowdown.com/sprites/${folder}/${slug}.gif`;
 };
+
+export const getAnimatedSpriteUrl = getModernAnimatedSprite;
 
 const moveCache = new Map();
 

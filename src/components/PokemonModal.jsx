@@ -5,7 +5,7 @@ import {
   getPokemonSpeciesData,
   getAbilityName,
   getPokemonFormData,
-  getAnimatedSpriteUrl,
+  getModernAnimatedSprite,
   translateMovesBatch,
 } from '../services/pokemonService';
 import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
@@ -67,8 +67,6 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
   const [lensFlash, setLensFlash] = useState(false);
   const [translatedAbilities, setTranslatedAbilities] = useState([]);
   const [activeTab, setActiveTab] = useState('info'); // 'info' | 'moves'
-  const [fallbackSrc, setFallbackSrc] = useState(null);
-  const [prevSpriteKey, setPrevSpriteKey] = useState('');
   const [translatedMoves, setTranslatedMoves] = useState([]);
   const [isLoadingMoves, setIsLoadingMoves] = useState(false);
   const prevPokemonNameRef = useRef(currentPokemon?.name);
@@ -89,14 +87,6 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
 
   // Forma activa (displayPokemon toma la variedad seleccionada o el Pokémon base)
   const displayPokemon = activeVariety || currentPokemon;
-
-  // Sincronización del sprite animado con reseteo de fallback reactivo
-  const spriteKey = `${displayPokemon?.name}-${isShiny}`;
-  if (spriteKey !== prevSpriteKey) {
-    setPrevSpriteKey(spriteKey);
-    setFallbackSrc(null);
-  }
-  const spriteSrc = fallbackSrc || getAnimatedSpriteUrl(displayPokemon, isShiny);
 
   // Carga reactiva de movimientos traducidos oficiales al cambiar displayPokemon, activeTab o language
   useEffect(() => {
@@ -877,65 +867,49 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   opacity={0.30}
                   color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}
                 />
-                {spriteSrc ? (
-                  <>
-                    <img
-                      key={`${displayPokemon.id}-${displayPokemon.name}-${isShiny}`}
-                      src={spriteSrc}
-                      alt={displayPokemon.name}
-                      onError={() => {
-                        // Fallback 1: GIF animado clásico de Gen 5 de PokéAPI
-                        const gen5Gif = isShiny
-                          ? displayPokemon.sprites?.versions?.['generation-v']?.['black-white']?.animated?.front_shiny
-                          : displayPokemon.sprites?.versions?.['generation-v']?.['black-white']?.animated?.front_default;
+                <img
+                  key={`${displayPokemon.id}-${displayPokemon.name}-${isShiny}`}
+                  src={getModernAnimatedSprite(displayPokemon, isShiny)}
+                  alt={displayPokemon.name}
+                  onError={(e) => {
+                    // Fallback prioritario: Arte oficial 3D HD de PokéAPI (SVG / Home / Official Artwork)
+                    const highResFallback = isShiny
+                      ? (displayPokemon.sprites?.other?.home?.front_shiny || displayPokemon.sprites?.other?.['official-artwork']?.front_shiny)
+                      : (displayPokemon.sprites?.other?.home?.front_default || displayPokemon.sprites?.other?.['official-artwork']?.front_default);
 
-                        // Fallback 2: Arte oficial de alta resolución
-                        const officialArt = isShiny
-                          ? (displayPokemon.sprites?.other?.['official-artwork']?.front_shiny || displayPokemon.sprites?.front_shiny)
-                          : (displayPokemon.sprites?.other?.['official-artwork']?.front_default || displayPokemon.sprites?.front_default);
-
-                        if (spriteSrc !== gen5Gif && gen5Gif) {
-                          setFallbackSrc(gen5Gif);
-                        } else if (spriteSrc !== officialArt && officialArt) {
-                          setFallbackSrc(officialArt);
-                        }
-                      }}
-                      style={{
-                        height: 'clamp(145px, 15vw, 175px)',
-                        maxHeight: '180px',
-                        width: 'auto',
-                        objectFit: 'contain',
-                        filter: isShiny
-                          ? 'drop-shadow(0 6px 12px rgba(234, 179, 8, 0.45))'
-                          : 'drop-shadow(0 6px 10px rgba(0, 0, 0, 0.16))',
-                        position: 'relative',
-                        zIndex: 2,
-                        transition: 'all 0.3s ease',
-                      }}
-                    />
-                    {/* Sombra dinámica inferior reactiva */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: '4px',
-                        width: '100px',
-                        height: '14px',
-                        borderRadius: '50%',
-                        backgroundColor: '#0f172a',
-                        filter: 'blur(4px)',
-                        animation: isFloating
-                          ? 'shadowPulse 3.2s ease-in-out infinite'
-                          : 'shadowPulse 3.4s ease-in-out infinite',
-                        pointerEvents: 'none',
-                        zIndex: 0,
-                      }}
-                    />
-                  </>
-                ) : (
-                  <span style={{ color: '#94a3b8', position: 'relative', zIndex: 1 }}>
-                    {UI_TRANSLATIONS[language].noImage}
-                  </span>
-                )}
+                    if (highResFallback && e.currentTarget.src !== highResFallback) {
+                      e.currentTarget.src = highResFallback;
+                    }
+                  }}
+                  style={{
+                    height: 'clamp(140px, 14vw, 170px)',
+                    maxHeight: '175px',
+                    width: 'auto',
+                    objectFit: 'contain',
+                    imageRendering: 'auto', // Suavizado nativo vectorial limpio
+                    filter: 'drop-shadow(0 6px 14px rgba(0, 0, 0, 0.15))',
+                    position: 'relative',
+                    zIndex: 2,
+                    transition: 'transform 0.3s ease',
+                  }}
+                />
+                {/* Sombra dinámica inferior reactiva */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '4px',
+                    width: '100px',
+                    height: '14px',
+                    borderRadius: '50%',
+                    backgroundColor: '#0f172a',
+                    filter: 'blur(4px)',
+                    animation: isFloating
+                      ? 'shadowPulse 3.2s ease-in-out infinite'
+                      : 'shadowPulse 3.4s ease-in-out infinite',
+                    pointerEvents: 'none',
+                    zIndex: 0,
+                  }}
+                />
               </div>
 
               {/* Badges de Tipos Oficiales */}
