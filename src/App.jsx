@@ -385,14 +385,15 @@ function App() {
             maxWidth: '860px',
             padding: '0 20px',
             boxSizing: 'border-box',
-            marginBottom: '0',
+            marginTop: '28px',
+            marginBottom: '20px',
             position: 'relative',
-            zIndex: 1,
+            zIndex: 2,
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '12px',
             flexWrap: 'wrap',
-            justifyContent: 'center',
             flexShrink: 0,
           }}
         >

@@ -8,8 +8,8 @@ const PokemonGrid = ({ pokemonList = [], onSelectPokemon, cols = 2, children }) 
         width: '100%', 
         margin: '0 auto', 
         boxSizing: 'border-box',
-        /* Padding superior e inferior idénticos (24px) y laterales fluidos (3vw) */
-        paddingTop: '24px',
+        /* Padding superior moderado (12px), inferior (24px) y laterales fluidos (3vw) */
+        paddingTop: '12px',
         paddingBottom: '24px',
         paddingLeft: '3vw',
         paddingRight: '3vw',
