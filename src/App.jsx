@@ -860,6 +860,7 @@ function App() {
           pokemon={selectedPokemon}
           language={language}
           onClose={() => setSelectedPokemon(null)}
+          onSelectPokemon={setSelectedPokemon}
         />
       )}
     </div>

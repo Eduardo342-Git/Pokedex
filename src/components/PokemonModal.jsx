@@ -46,7 +46,7 @@ const getBarColor = (value) => {
   return '#06b6d4';
 };
 
-function PokemonModal({ pokemon, onClose, language = 'es' }) {
+function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
   // Gestión de estados locales en el modal
   const [currentPokemon, setCurrentPokemon] = useState(pokemon);
   const [prevPokemonProp, setPrevPokemonProp] = useState(pokemon);
@@ -61,9 +61,25 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
   const [speciesInfo, setSpeciesInfo] = useState(null);
   const [isShiny, setIsShiny] = useState(false);
   const [loadingCombatData, setLoadingCombatData] = useState(false);
+  const [loadingSpecies, setLoadingSpecies] = useState(false);
+  const [lensFlash, setLensFlash] = useState(false);
   const [translatedAbilities, setTranslatedAbilities] = useState([]);
   const [activeTab, setActiveTab] = useState('info'); // 'info' | 'moves'
   const prevPokemonNameRef = useRef(currentPokemon?.name);
+  const currentPokemonRef = useRef(currentPokemon);
+
+  useEffect(() => {
+    currentPokemonRef.current = currentPokemon;
+  }, [currentPokemon]);
+
+  const isLoading = loadingCombatData || loadingSpecies;
+
+  const isRare = Boolean(
+    speciesInfo?.isLegendary ||
+    speciesInfo?.isMythical ||
+    activeVariety?.name?.includes('mega') ||
+    activeVariety?.name?.includes('gmax')
+  );
 
   // Forma activa (displayPokemon toma la variedad seleccionada o el Pokémon base)
   const displayPokemon = activeVariety || currentPokemon;
@@ -98,11 +114,47 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
     setIsShiny(false);
   }
 
-  // Cierre con la tecla Escape
+  // Navegación por D-Pad / ID
+  const handleNavigateId = async (targetId) => {
+    if (targetId < 1 || loadingCombatData || loadingSpecies) return;
+    try {
+      setLoadingCombatData(true);
+      const updated = await getPokemonDetails(targetId);
+      setCurrentPokemon(updated);
+      setActiveVariety(null);
+      setIsShiny(false);
+      if (onSelectPokemon) {
+        onSelectPokemon(updated);
+      }
+    } catch (err) {
+      console.error('Error al navegar por D-Pad:', err);
+    } finally {
+      setLoadingCombatData(false);
+    }
+  };
+
+  const handleNavigateIdRef = useRef(handleNavigateId);
+  useEffect(() => {
+    handleNavigateIdRef.current = handleNavigateId;
+  });
+
+  // Cierre con la tecla Escape y navegación física por teclado (flechas izquierda/derecha)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && onClose) {
         onClose();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const cur = currentPokemonRef.current;
+        if (cur && cur.id > 1) {
+          handleNavigateIdRef.current(cur.id - 1);
+        }
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const cur = currentPokemonRef.current;
+        if (cur && cur.id) {
+          handleNavigateIdRef.current(cur.id + 1);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -123,6 +175,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
             setActiveVariety(null);
           }
         }
+        if (isMounted) setLoadingSpecies(true);
         const currentPrimaryType = currentPokemon.types?.[0]?.type?.name || 'normal';
         const species = await getPokemonSpeciesData(currentPokemon.name, language, currentPrimaryType);
 
@@ -134,12 +187,16 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
               varieties: [],
               habitat: 'unknown',
               evolutionChain: [],
+              isLegendary: false,
+              isMythical: false,
             }
           );
           setAvailableVarieties(species?.varieties || []);
         }
       } catch (error) {
         console.error('Error cargando datos de Pokémon:', error);
+      } finally {
+        if (isMounted) setLoadingSpecies(false);
       }
     };
 
@@ -221,6 +278,9 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
       setCurrentPokemon(updatedPokemon);
       setActiveVariety(null);
       setIsShiny(false);
+      if (onSelectPokemon) {
+        onSelectPokemon(updatedPokemon);
+      }
     } catch (error) {
       console.error('Error al navegar evolución:', error);
     } finally {
@@ -239,6 +299,12 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
       audio.volume = 0.6;
       audio.play().catch((e) => console.warn('Audio no disponible', e));
     }
+  };
+
+  const triggerCryWithFlash = () => {
+    playCry();
+    setLensFlash(true);
+    setTimeout(() => setLensFlash(false), 400);
   };
 
   const hasCry = Boolean(
@@ -280,7 +346,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
         boxSizing: 'border-box',
       }}
     >
-      {/* Estilos para animación de despliegue vertical de la Pokédex */}
+      {/* Estilos para animación de despliegue vertical de la Pokédex y LEDs */}
       <style>{`
         @keyframes pokedexOpenVertical {
           0% {
@@ -301,6 +367,75 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
             transform: scaleY(1) scaleX(1);
             filter: brightness(1);
           }
+        }
+        @keyframes lensBreathe {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 2px 4px rgba(0, 0, 0, 0.3);
+          }
+          50% {
+            transform: scale(1.04);
+            box-shadow: 0 0 18px #38bdf8, 0 2px 8px rgba(56, 189, 248, 0.6);
+          }
+        }
+        @keyframes blinkYellow {
+          0%, 100% {
+            opacity: 1;
+            background-color: #facc15;
+            box-shadow: 0 0 8px #facc15, 0 0 14px rgba(250, 204, 21, 0.6);
+          }
+          50% {
+            opacity: 0.35;
+            background-color: #854d0e;
+            box-shadow: 0 0 2px #ca8a04;
+          }
+        }
+        @keyframes shinyLedPulse {
+          0%, 100% {
+            background-color: #fef08a;
+            box-shadow: 0 0 8px #facc15, 0 0 14px #eab308;
+            transform: scale(1.15);
+          }
+          50% {
+            background-color: #ca8a04;
+            box-shadow: 0 0 2px #ca8a04;
+            transform: scale(1);
+          }
+        }
+        .pokedex-lens-btn {
+          cursor: pointer;
+          transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+        }
+        .pokedex-lens-btn:active {
+          transform: scale(0.95) !important;
+        }
+        .pokedex-black-btn {
+          cursor: pointer;
+          transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.15s ease;
+        }
+        .pokedex-black-btn:hover {
+          filter: brightness(1.2);
+        }
+        .pokedex-black-btn:active {
+          transform: scale(0.92) !important;
+          box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+        }
+        .dpad-arm {
+          cursor: pointer;
+          transition: transform 0.1s ease, background-color 0.15s ease, box-shadow 0.1s ease;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        .dpad-arm:hover {
+          background-color: #334155 !important;
+        }
+        .dpad-arm:active {
+          transform: scale(0.94) !important;
+          box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6) !important;
+        }
+        .dpad-arm:disabled {
+          opacity: 0.35;
+          cursor: not-allowed !important;
         }
       `}</style>
 
@@ -341,47 +476,99 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
         >
           {/* Lente principal y 3 luces de estado */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
+            {/* Lente Azul Grande Reactivo */}
+            <button
+              type="button"
+              className="pokedex-lens-btn"
+              onClick={triggerCryWithFlash}
+              title={language === 'es' ? 'Reproducir grito oficial' : 'Play official cry'}
+              aria-label="Lente de la Pokédex"
               style={{
-                width: '38px',
-                height: '38px',
+                width: '40px',
+                height: '40px',
                 borderRadius: '50%',
                 border: '3px solid #ffffff',
                 background:
                   'radial-gradient(circle at 30% 30%, #38bdf8, #0284c7 70%, #0369a1)',
-                boxShadow:
-                  '0 0 10px rgba(56, 189, 248, 0.8), 0 2px 4px rgba(0, 0, 0, 0.3)',
+                boxShadow: lensFlash
+                  ? '0 0 25px #ffffff, 0 0 35px #38bdf8'
+                  : isLoading
+                  ? '0 0 16px #38bdf8'
+                  : '0 0 10px rgba(56, 189, 248, 0.8), 0 2px 4px rgba(0, 0, 0, 0.3)',
+                animation: isLoading && !lensFlash ? 'lensBreathe 1.5s infinite ease-in-out' : 'none',
+                filter: lensFlash ? 'brightness(1.8)' : 'brightness(1)',
+                transform: lensFlash ? 'scale(1.08)' : 'scale(1)',
+                padding: 0,
+                outline: 'none',
               }}
             />
-            <div style={{ display: 'flex', gap: '6px' }}>
+
+            {/* 3 LEDs indicadores reactivos */}
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {/* LED 1: Rojo (Encendido de Pokédex) */}
               <div
+                title={language === 'es' ? 'Pokédex activa' : 'Pokédex active'}
                 style={{
                   width: '10px',
                   height: '10px',
                   borderRadius: '50%',
                   backgroundColor: '#ef4444',
                   border: '1px solid rgba(0, 0, 0, 0.3)',
-                  boxShadow: '0 0 4px rgba(239, 68, 68, 0.8)',
+                  boxShadow: '0 0 5px #ef4444',
+                  animation: isShiny ? 'shinyLedPulse 1.2s infinite ease-in-out' : 'none',
+                  animationDelay: '0s',
                 }}
               />
+
+              {/* LED 2: Amarillo (Alerta de espécimen raro / isRare) */}
               <div
+                title={
+                  isRare
+                    ? language === 'es'
+                      ? 'Espécimen raro / legendario / mítico'
+                      : 'Rare / legendary / mythical specimen'
+                    : language === 'es'
+                    ? 'Estado normal'
+                    : 'Normal status'
+                }
                 style={{
                   width: '10px',
                   height: '10px',
                   borderRadius: '50%',
-                  backgroundColor: '#facc15',
+                  backgroundColor: isRare ? '#facc15' : '#ca8a04',
                   border: '1px solid rgba(0, 0, 0, 0.3)',
-                  boxShadow: '0 0 4px rgba(250, 204, 21, 0.8)',
+                  boxShadow: isRare ? '0 0 8px #facc15' : 'none',
+                  opacity: isRare || isShiny ? 1 : 0.55,
+                  animation: isShiny
+                    ? 'shinyLedPulse 1.2s infinite ease-in-out'
+                    : isRare
+                    ? 'blinkYellow 0.8s infinite'
+                    : 'none',
+                  animationDelay: isShiny ? '0.4s' : '0s',
                 }}
               />
+
+              {/* LED 3: Verde (Listo / Carga completada) */}
               <div
+                title={
+                  isLoading
+                    ? language === 'es'
+                      ? 'Sincronizando datos...'
+                      : 'Syncing data...'
+                    : language === 'es'
+                    ? 'Datos listos'
+                    : 'Data ready'
+                }
                 style={{
                   width: '10px',
                   height: '10px',
                   borderRadius: '50%',
-                  backgroundColor: '#22c55e',
+                  backgroundColor: isLoading ? '#15803d' : '#22c55e',
                   border: '1px solid rgba(0, 0, 0, 0.3)',
-                  boxShadow: '0 0 4px rgba(34, 197, 94, 0.8)',
+                  boxShadow: isLoading ? 'none' : '0 0 6px #22c55e',
+                  opacity: isLoading ? 0.5 : 1,
+                  animation: isShiny ? 'shinyLedPulse 1.2s infinite ease-in-out' : 'none',
+                  animationDelay: '0.8s',
                 }}
               />
             </div>
@@ -1662,7 +1849,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
           </div>
         </div>
 
-        {/* 3. Mandos Inferiores Pokédex (Detalles Físicos Decorativos) */}
+        {/* 3. Mandos Inferiores Pokédex (Controles de Hardware Funcionales) */}
         <div
           style={{
             display: 'flex',
@@ -1672,18 +1859,41 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
             padding: '4px 10px 0',
           }}
         >
-          {/* Botón circular grande negro a la izquierda */}
-          <div
+          {/* Botón circular grande negro a la izquierda (Disparador manual de Cry) */}
+          <button
+            type="button"
+            className="pokedex-black-btn"
+            onClick={triggerCryWithFlash}
+            title={language === 'es' ? 'Reproducir grito oficial' : 'Play official cry'}
+            aria-label={language === 'es' ? 'Reproducir grito oficial' : 'Play official cry'}
             style={{
-              width: '32px',
-              height: '32px',
+              width: '34px',
+              height: '34px',
               borderRadius: '50%',
               backgroundColor: '#1e293b',
-              border: '2px solid #0f172a',
+              border: '2.5px solid #0f172a',
+              cursor: 'pointer',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               boxShadow:
-                'inset 0 2px 4px rgba(255, 255, 255, 0.2), 0 3px 6px rgba(0, 0, 0, 0.5)',
+                'inset 0 2px 4px rgba(255, 255, 255, 0.25), 0 3px 6px rgba(0, 0, 0, 0.5)',
+              outline: 'none',
             }}
-          />
+          >
+            {/* Pequeño relieve biselado interior */}
+            <div
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle at 35% 35%, #334155, #0f172a)',
+                boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.15)',
+                pointerEvents: 'none',
+              }}
+            />
+          </button>
 
           {/* Dos líneas horizontales estilo altavoz en el centro */}
           <div
@@ -1714,52 +1924,126 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
             />
           </div>
 
-          {/* Cruceta direccional negra (D-pad en cruz) a la derecha */}
+          {/* Cruceta direccional D-Pad interactiva a la derecha */}
           <div
             style={{
               position: 'relative',
-              width: '36px',
-              height: '36px',
+              width: '44px',
+              height: '44px',
             }}
           >
-            {/* Barra horizontal */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '12px',
-                left: 0,
-                width: '36px',
-                height: '12px',
-                backgroundColor: '#1e293b',
-                borderRadius: '3px',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.4)',
-              }}
-            />
-            {/* Barra vertical */}
+            {/* Barra vertical de fondo (fija) */}
             <div
               style={{
                 position: 'absolute',
                 top: 0,
-                left: '12px',
-                width: '12px',
-                height: '36px',
+                left: '14px',
+                width: '16px',
+                height: '44px',
                 backgroundColor: '#1e293b',
-                borderRadius: '3px',
+                borderRadius: '4px',
                 boxShadow: '0 2px 4px rgba(0, 0, 0, 0.4)',
+                pointerEvents: 'none',
               }}
             />
-            {/* Hendidura central */}
+
+            {/* Brazo Izquierdo (◀) interactivo */}
+            <button
+              type="button"
+              className="dpad-arm"
+              onClick={() => currentPokemon.id > 1 && handleNavigateId(currentPokemon.id - 1)}
+              disabled={currentPokemon.id <= 1 || isLoading}
+              title={
+                language === 'es'
+                  ? `Anterior (#${String(Math.max(1, currentPokemon.id - 1)).padStart(3, '0')})`
+                  : `Previous (#${String(Math.max(1, currentPokemon.id - 1)).padStart(3, '0')})`
+              }
+              aria-label="Pokémon anterior"
+              style={{
+                position: 'absolute',
+                top: '14px',
+                left: 0,
+                width: '16px',
+                height: '16px',
+                backgroundColor: '#1e293b',
+                border: 'none',
+                borderTopLeftRadius: '4px',
+                borderBottomLeftRadius: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                color: '#94a3b8',
+                fontSize: '9px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.4)',
+                zIndex: 2,
+                outline: 'none',
+              }}
+            >
+              ◀
+            </button>
+
+            {/* Centro del D-Pad (neutro) */}
             <div
               style={{
                 position: 'absolute',
                 top: '14px',
                 left: '14px',
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: '#0f172a',
+                width: '16px',
+                height: '16px',
+                backgroundColor: '#1e293b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1,
+                pointerEvents: 'none',
               }}
-            />
+            >
+              <div
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: '#0f172a',
+                }}
+              />
+            </div>
+
+            {/* Brazo Derecho (▶) interactivo */}
+            <button
+              type="button"
+              className="dpad-arm"
+              onClick={() => handleNavigateId(currentPokemon.id + 1)}
+              disabled={isLoading}
+              title={
+                language === 'es'
+                  ? `Siguiente (#${String(currentPokemon.id + 1).padStart(3, '0')})`
+                  : `Next (#${String(currentPokemon.id + 1).padStart(3, '0')})`
+              }
+              aria-label="Pokémon siguiente"
+              style={{
+                position: 'absolute',
+                top: '14px',
+                right: 0,
+                width: '16px',
+                height: '16px',
+                backgroundColor: '#1e293b',
+                border: 'none',
+                borderTopRightRadius: '4px',
+                borderBottomRightRadius: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                color: '#94a3b8',
+                fontSize: '9px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.4)',
+                zIndex: 2,
+                outline: 'none',
+              }}
+            >
+              ▶
+            </button>
           </div>
         </div>
       </div>

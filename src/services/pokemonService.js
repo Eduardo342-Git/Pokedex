@@ -270,6 +270,8 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primar
       varieties,
       habitat,
       evolutionChain,
+      isLegendary,
+      isMythical,
     };
   } catch (error) {
     console.error(`Error al obtener especie/lore de "${pokemonIdOrName}":`, error);
@@ -282,6 +284,8 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primar
       varieties: [],
       habitat: resolveHabitat(null, false, false, primaryType, pokemonIdOrName),
       evolutionChain: [],
+      isLegendary: false,
+      isMythical: false,
     };
   }
 };
