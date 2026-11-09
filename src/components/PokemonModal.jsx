@@ -73,12 +73,24 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
   const [isScanning, setIsScanning] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [spawnKey, setSpawnKey] = useState('');
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+  const [mobileScreen, setMobileScreen] = useState('pokemon'); // 'pokemon' | 'stats'
   const prevPokemonNameRef = useRef(currentPokemon?.name);
   const currentPokemonRef = useRef(currentPokemon);
 
   useEffect(() => {
     currentPokemonRef.current = currentPokemon;
   }, [currentPokemon]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const isLoading = loadingCombatData || loadingSpecies || isLoadingMoves;
 
@@ -598,17 +610,19 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
         }
       `}</style>
 
-      {/* Carcasa Principal Ancha de la Pokédex Doble Pantalla Abatible */}
+      {/* Carcasa Principal de la Pokédex Doble Pantalla */}
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '95%',
-          maxWidth: '860px',
-          maxHeight: '90vh',
+          width: isMobile ? '95vw' : '95%',
+          maxWidth: isMobile ? '440px' : '860px',
+          maxHeight: isMobile ? '92dvh' : '90vh',
+          display: 'flex',
+          flexDirection: 'column',
           overflowY: 'auto',
           scrollBehavior: 'smooth',
           WebkitOverflowScrolling: 'touch',
-          padding: '20px',
+          padding: isMobile ? '14px 10px' : '20px',
           position: 'relative',
           background: 'linear-gradient(145deg, #dc2626 0%, #b91c1c 100%)',
           border: '4px solid #991b1b',
@@ -628,9 +642,10 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            marginBottom: '16px',
-            paddingBottom: '12px',
+            marginBottom: isMobile ? '10px' : '16px',
+            paddingBottom: isMobile ? '8px' : '12px',
             borderBottom: '2px solid #7f1d1d',
+            flexShrink: 0,
           }}
         >
           {/* Lente principal y 3 luces de estado */}
@@ -643,8 +658,8 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
               title={language === 'es' ? 'Reproducir grito oficial' : 'Play official cry'}
               aria-label="Lente de la Pokédex"
               style={{
-                width: '40px',
-                height: '40px',
+                width: isMobile ? '36px' : '40px',
+                height: isMobile ? '36px' : '40px',
                 borderRadius: '50%',
                 border: '3px solid #ffffff',
                 background:
@@ -761,22 +776,98 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
           </button>
         </div>
 
+        {/* Pestañas Superiores de Pantalla en Móvil (Mobile Screen Switcher) */}
+        {isMobile && (
+          <div
+            style={{
+              display: 'flex',
+              gap: '6px',
+              marginBottom: '10px',
+              backgroundColor: '#7f1d1d',
+              padding: '4px',
+              borderRadius: '12px',
+              boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.4)',
+              flexShrink: 0,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setMobileScreen('pokemon')}
+              style={{
+                flex: 1,
+                padding: '6px 8px',
+                fontSize: '11px',
+                fontWeight: '700',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: mobileScreen === 'pokemon' ? '#ffffff' : 'transparent',
+                color: mobileScreen === 'pokemon' ? '#b91c1c' : '#fecaca',
+                boxShadow: mobileScreen === 'pokemon' ? '0 2px 5px rgba(0,0,0,0.25)' : 'none',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '5px',
+              }}
+            >
+              <span>📱</span>
+              <span>{language === 'es' ? 'Pantalla 1: Pokémon' : 'Screen 1: Pokémon'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileScreen('stats')}
+              style={{
+                flex: 1,
+                padding: '6px 8px',
+                fontSize: '11px',
+                fontWeight: '700',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: mobileScreen === 'stats' ? '#ffffff' : 'transparent',
+                color: mobileScreen === 'stats' ? '#b91c1c' : '#fecaca',
+                boxShadow: mobileScreen === 'stats' ? '0 2px 5px rgba(0,0,0,0.25)' : 'none',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '5px',
+              }}
+            >
+              <span>📊</span>
+              <span>{language === 'es' ? 'Pantalla 2: Stats & Datos' : 'Screen 2: Stats & Data'}</span>
+            </button>
+          </div>
+        )}
+
         {/* 2. Estructura Interna a Doble Pantalla LCD Adaptable */}
-        <div className="pokedex-dual-screen">
+        <div
+          className="pokedex-dual-screen"
+          style={{
+            maxHeight: isMobile ? 'calc(92dvh - 130px)' : undefined,
+            overflowY: isMobile ? 'auto' : undefined,
+            display: isMobile ? 'flex' : 'grid',
+            flexDirection: isMobile ? 'column' : undefined,
+            flex: 1,
+          }}
+        >
           {/* ======================================================== */}
           {/* PANTALLA IZQUIERDA: Visor del Espécimen, Datos y Lore     */}
           {/* ======================================================== */}
-          <div
-            style={{
-              backgroundColor: '#e2e8f0',
-              border: '2px solid #cbd5e1',
-              borderRadius: '16px',
-              padding: '14px',
-              boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.1)',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
+          {(!isMobile || mobileScreen === 'pokemon') && (
+            <div
+              style={{
+                backgroundColor: '#e2e8f0',
+                border: '2px solid #cbd5e1',
+                borderRadius: '16px',
+                padding: isMobile ? '10px' : '14px',
+                boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                flexShrink: 0,
+              }}
+            >
             {/* Pequeños puntos rojos superiores estilo LED */}
             <div
               style={{
@@ -972,7 +1063,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   position: 'relative',
                   overflow: 'hidden',
                   borderRadius: '16px',
-                  minHeight: '180px',
+                  minHeight: isMobile ? '140px' : '180px',
                   zIndex: 2,
                 }}
               >
@@ -994,7 +1085,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                 )}
 
                 <PokeballWatermark
-                  size="210px"
+                  size={isMobile ? '170px' : '210px'}
                   opacity={0.30}
                   color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}
                 />
@@ -1008,8 +1099,8 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                     }
                   }}
                   style={{
-                    height: 'clamp(155px, 16vw, 190px)',
-                    maxHeight: '195px',
+                    height: isMobile ? '125px' : 'clamp(155px, 16vw, 190px)',
+                    maxHeight: isMobile ? '130px' : '195px',
                     width: 'auto',
                     objectFit: 'contain',
                     filter: 'drop-shadow(0 8px 16px rgba(0, 0, 0, 0.18))',
@@ -1029,8 +1120,8 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                 {/* Sombra dinámica sincronizada */}
                 <div
                   style={{
-                    width: '90px',
-                    height: '14px',
+                    width: isMobile ? '75px' : '90px',
+                    height: isMobile ? '12px' : '14px',
                     borderRadius: '50%',
                     backgroundColor: '#0f172a',
                     margin: '-6px auto 0 auto',
@@ -1266,21 +1357,24 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
               </div>
             </div>
           </div>
+          )}
 
           {/* ======================================================== */}
           {/* PANTALLA DERECHA: Consola de Datos, Combate y Evolución  */}
           {/* ======================================================== */}
-          <div
-            style={{
-              backgroundColor: '#e2e8f0',
-              border: '2px solid #cbd5e1',
-              borderRadius: '16px',
-              padding: '14px',
-              boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.1)',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
+          {(!isMobile || mobileScreen === 'stats') && (
+            <div
+              style={{
+                backgroundColor: '#e2e8f0',
+                border: '2px solid #cbd5e1',
+                borderRadius: '16px',
+                padding: isMobile ? '10px' : '14px',
+                boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                flexShrink: 0,
+              }}
+            >
             {/* Pequeños puntos rojos superiores estilo LED */}
             <div
               style={{
@@ -1794,9 +1888,10 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                             type="button"
                             onClick={() => setMoveCategory(cat.id)}
                             style={{
-                              padding: '4px 10px',
-                              fontSize: '11px',
+                              padding: '4px 6px',
+                              fontSize: '10px',
                               fontWeight: '700',
+                              whiteSpace: 'nowrap',
                               borderRadius: '10px',
                               border: isActive ? `2px solid ${TYPE_BORDER_COLORS[primaryType] || '#ef4444'}` : '1px solid #cbd5e1',
                               backgroundColor: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.6)',
@@ -1841,7 +1936,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                       <div
                         style={{
                           display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))',
                           gap: '8px',
                           maxHeight: '280px',
                           overflowY: 'auto',
@@ -2044,6 +2139,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
               )}
             </div>
           </div>
+          )}
         </div>
 
         {/* 3. Mandos Inferiores Pokédex (Controles de Hardware Funcionales) */}
@@ -2052,8 +2148,9 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            marginTop: '16px',
+            marginTop: isMobile ? '10px' : '16px',
             padding: '4px 10px 0',
+            flexShrink: 0,
           }}
         >
           {/* Botón circular grande negro a la izquierda (Disparador manual de Cry) */}
