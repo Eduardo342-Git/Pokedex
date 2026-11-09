@@ -63,15 +63,15 @@ body {
   opacity: 0.85;
 }
 
-/* Reglas responsivas para la cuadrícula: Control exacto de columnas */
+/* Reglas responsivas para la cuadrícula: Control exacto de columnas y respiración */
 .pokemon-grid-container,
 .pro-pokemon-grid {
   display: grid;
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 auto !important;
-  padding: 24px !important;
-  gap: 24px !important;
+  padding: 24px 24px 100px 24px !important;
+  gap: 28px !important;
   box-sizing: border-box;
   /* Móvil por defecto: 2 columnas */
   grid-template-columns: repeat(2, 1fr) !important;
@@ -82,8 +82,8 @@ body {
   .pokemon-grid-container,
   .pro-pokemon-grid {
     grid-template-columns: repeat(3, 1fr) !important;
-    gap: 20px !important;
-    padding: 24px 32px !important;
+    gap: 24px !important;
+    padding: 24px 32px 100px 32px !important;
   }
 }
 
@@ -92,8 +92,8 @@ body {
   .pokemon-grid-container,
   .pro-pokemon-grid {
     grid-template-columns: repeat(4, 1fr) !important;
-    gap: 28px !important;
-    padding: 32px 40px !important;
+    gap: 32px !important;
+    padding: 32px 40px 100px 40px !important;
   }
 }
 
@@ -102,8 +102,8 @@ body {
   .pokemon-grid-container,
   .pro-pokemon-grid {
     grid-template-columns: repeat(6, 1fr) !important;
-    gap: 32px !important;
-    padding: 40px 48px !important;
+    gap: 36px !important;
+    padding: 40px 48px 120px 48px !important;
   }
 }
 

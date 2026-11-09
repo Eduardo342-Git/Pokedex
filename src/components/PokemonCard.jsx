@@ -49,8 +49,8 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
           aspectRatio: '4 / 5',
           backgroundColor: '#f8fafc',
           border: '2px solid #e2e8f0',
-          borderRadius: 'clamp(14px, 2vw, 24px)',
-          padding: '6% 5%',
+          borderRadius: 'clamp(12px, 1.5vw, 20px)',
+          padding: '5% 4%',
           boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',
@@ -59,7 +59,7 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
           cursor: 'default',
         }}
       >
-        <p style={{ color: '#64748b', fontSize: 'clamp(11px, 1.2vw, 15px)', margin: 0, fontWeight: 500 }}>
+        <p style={{ color: '#64748b', fontSize: 'clamp(10px, 1vw, 14px)', margin: 0, fontWeight: 500 }}>
           {language === 'es' ? 'Sintonizando...' : 'Tuning in...'}
         </p>
       </div>
@@ -87,8 +87,8 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
         aspectRatio: '4 / 5', // Proporción estricta tipo carta
         backgroundColor: pastelBg,
         border: `2px solid ${borderColor}`,
-        borderRadius: 'clamp(14px, 2vw, 24px)',
-        padding: '6% 5%', // Padding basado en el ancho de la tarjeta
+        borderRadius: 'clamp(12px, 1.5vw, 20px)',
+        padding: '5% 4%',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
@@ -113,7 +113,7 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
       {/* ID del Pokémon */}
       <span
         style={{
-          fontSize: 'clamp(11px, 1.2vw, 15px)',
+          fontSize: 'clamp(10px, 1vw, 14px)',
           fontWeight: '800',
           color: '#64748b',
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
@@ -132,7 +132,7 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
-          margin: '4% 0',
+          margin: '2% 0',
           zIndex: 2,
         }}
       >
@@ -140,7 +140,7 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
         <div
           style={{
             position: 'absolute',
-            width: '75%',
+            width: '70%',
             aspectRatio: '1 / 1',
             borderRadius: '50%',
             border: '3px solid rgba(255, 255, 255, 0.6)',
@@ -155,8 +155,8 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
             src={artwork}
             alt={activePokemon.name}
             style={{
-              width: '85%',
-              height: '85%',
+              width: '82%',
+              height: '82%',
               objectFit: 'contain',
               filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.15))',
               zIndex: 2,
@@ -181,7 +181,7 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
           translate="no"
           className="notranslate"
           style={{
-            fontSize: 'clamp(12px, 1.4vw, 18px)',
+            fontSize: 'clamp(11px, 1.2vw, 16px)',
             fontWeight: '900',
             textTransform: 'uppercase',
             color: '#0f172a',
@@ -197,11 +197,11 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
             <span
               key={t.type.name}
               style={{
-                fontSize: 'clamp(9px, 0.9vw, 12px)',
+                fontSize: 'clamp(8.5px, 0.8vw, 11px)',
                 fontWeight: '800',
                 textTransform: 'uppercase',
                 padding: '3px 8px',
-                borderRadius: '8px',
+                borderRadius: '6px',
                 color: '#ffffff',
                 backgroundColor: TYPE_BORDER_COLORS?.[t.type.name] || '#64748b',
               }}
