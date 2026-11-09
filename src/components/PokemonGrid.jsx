@@ -6,10 +6,13 @@ const PokemonGrid = ({ pokemonList = [], onSelectPokemon, cols = 2, children }) 
     <div 
       style={{ 
         width: '100%', 
-        margin: '0', 
-        /* Padding lateral con 'vw' (viewport width) asegura un margen fluido de borde a borde */
-        padding: '24px 3vw 120px 3vw', 
-        boxSizing: 'border-box' 
+        margin: '0 auto', 
+        boxSizing: 'border-box',
+        /* Padding superior e inferior idénticos (24px) y laterales fluidos (3vw) */
+        paddingTop: '24px',
+        paddingBottom: '24px',
+        paddingLeft: '3vw',
+        paddingRight: '3vw',
       }}
     >
       <div 

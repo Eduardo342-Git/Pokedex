@@ -653,6 +653,7 @@ function App() {
             position: 'relative',
             zIndex: 40,
             flexShrink: 0,
+            margin: 0,
           }}
         >
           <div
