@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const BASE_URL = import.meta.env?.VITE_POKEAPI_URL || 'https://pokeapi.co/api/v2';
 
-export const getPokemonList = async (limit = 24, offset = 0) => {
+export const getPokemonList = async (limit = 12, offset = 0) => {
   try {
     const response = await axios.get(`${BASE_URL}/pokemon?limit=${limit}&offset=${offset}`);
     return {
@@ -232,10 +232,10 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primar
     // 3. Extraer variedades (formas alternativas, mega, gmax, etc.)
     const varieties = Array.isArray(data.varieties)
       ? data.varieties.map((v) => ({
-          name: v.pokemon.name,
-          url: v.pokemon.url,
-          is_default: v.is_default,
-        }))
+        name: v.pokemon.name,
+        url: v.pokemon.url,
+        is_default: v.is_default,
+      }))
       : [];
 
     // 4. Extraer y resolver hábitat
@@ -427,7 +427,7 @@ export const getPokemonTypeRelations = async (types) => {
 export const getPokemonEvolutions = async (pokemonIdOrName) => {
   try {
     const cleanIdentifier = String(pokemonIdOrName).trim().toLowerCase();
-    
+
     // 1. Consultar species para obtener la URL de evolution_chain
     const speciesResponse = await axios.get(`${BASE_URL}/pokemon-species/${cleanIdentifier}`);
     const evolutionChainUrl = speciesResponse.data?.evolution_chain?.url;

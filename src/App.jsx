@@ -10,7 +10,7 @@ function App() {
 
   const [language, setLanguage] = useState('es');
   const [selectedRegion, setSelectedRegion] = useState('all');
-  const ITEMS_PER_PAGE = 24;
+  const ITEMS_PER_PAGE = 12;
   const [limit] = useState(ITEMS_PER_PAGE);
   const [pokemonList, setPokemonList] = useState([]);
   const [page, setPage] = useState(1);

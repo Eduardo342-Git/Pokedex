@@ -66,75 +66,127 @@ body {
 /* Reglas responsivas para la cuadrícula */
 .pokemon-grid-container {
   display: grid;
-  width: 94%;
-  max-width: 1680px; /* Se expande de forma elegante en pantallas 1080p y 2K */
-  margin: 0 auto;
-  padding: 16px 0 28px 0;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 20px 28px !important; /* Espaciado lateral limpio contra el borde de la pantalla */
   box-sizing: border-box;
-  gap: 16px;
-  /* Genera columnas estables y proporcionales */
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 18px;
+  /* Genera columnas anchas y amplias en PC */
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
 }
 
-/* Pantallas ultrawide o monitores grandes (6 columnas parejas fijas) */
-@media (min-width: 1440px) {
+/* Monitores anchos de PC / Desktop: 6 o 7 columnas de margen a margen */
+@media (min-width: 1400px) {
   .pokemon-grid-container {
     grid-template-columns: repeat(6, 1fr);
+    gap: 20px;
+    padding: 24px 32px;
   }
 }
 
-/* Laptops / Pantallas medianas (4 columnas parejas fijas) */
-@media (min-width: 992px) and (max-width: 1439px) {
+/* Laptops medianas (4 columnas anchas) */
+@media (min-width: 900px) and (max-width: 1399px) {
   .pokemon-grid-container {
     grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    padding: 20px 24px;
   }
 }
 
-/* Tablets (3 columnas) */
-@media (min-width: 641px) and (max-width: 991px) {
-  .pokemon-grid-container {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-/* Móvil: 2 columnas perfectas de borde a borde */
+/* Celular (NO TOCAR: mantener las 2 columnas que ya están perfectas) */
 @media (max-width: 640px) {
   .pokemon-grid-container {
-    width: 94%;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    padding: 10px 0 20px 0;
+    width: 100% !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
   }
 }
 
 /* Proporción de la Tarjeta */
 .pokemon-card {
-  min-height: 190px;
+  min-height: 230px !important; /* Más presencia vertical */
   height: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 10px;
-  border-radius: 18px;
+  padding: 14px 12px 16px 12px !important;
+  border-radius: 20px !important;
   box-sizing: border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pokemon-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* #ID */
+.pokemon-card .card-id {
+  font-size: 13px !important;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+/* Contenedor y Sprite del Pokémon */
+.pokemon-card .sprite-wrapper {
+  width: 100%;
+  height: 130px !important; /* Espacio amplio para el Pokémon */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pokemon-card img {
-  width: 105px;
-  height: 105px;
+  max-height: 125px !important; /* Sprite grande y protagonista */
+  max-width: 125px !important;
   object-fit: contain;
-  transition: transform 0.2s ease;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.12));
 }
 
+/* Nombre del Pokémon */
+.pokemon-card .card-name {
+  font-size: 14.5px !important;
+  font-weight: 900 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 6px 0 8px 0 !important;
+}
+
+/* Pastillas de Tipos */
+.pokemon-card .type-badge {
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  padding: 3px 12px !important;
+  border-radius: 10px !important;
+  letter-spacing: 0.4px;
+}
+
+/* Mantener dimensiones reducidas exclusivamente en Celular */
 @media (max-width: 640px) {
   .pokemon-card {
-    min-height: 165px;
-    padding: 10px 8px;
+    min-height: 165px !important;
+    padding: 10px 8px !important;
+  }
+  .pokemon-card .sprite-wrapper {
+    height: 85px !important;
   }
   .pokemon-card img {
-    width: 85px;
-    height: 85px;
+    max-height: 80px !important;
+    max-width: 80px !important;
+  }
+  .pokemon-card .card-id {
+    font-size: 11px !important;
+  }
+  .pokemon-card .card-name {
+    font-size: 12px !important;
+    margin: 4px 0 !important;
+  }
+  .pokemon-card .type-badge {
+    font-size: 9px !important;
+    padding: 2px 7px !important;
   }
 }
 

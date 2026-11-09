@@ -35,25 +35,16 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
 
   const cardStyle = {
     position: 'relative',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '12px 10px 14px 10px',
-    borderRadius: '18px',
     backgroundColor: pastelBg,
     border: `2px solid ${borderColor}`,
     cursor: pokemon ? 'pointer' : 'default',
     boxSizing: 'border-box',
-    minHeight: '195px',
     overflow: 'hidden',
-    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-    transform: isHovered && pokemon ? 'translateY(-4px)' : 'translateY(0)',
+    userSelect: 'none',
     boxShadow:
       isHovered && pokemon
         ? `0 8px 24px ${borderColor}55`
         : `0 4px 14px ${borderColor}30`,
-    userSelect: 'none',
   };
 
   if (loading) {
@@ -62,17 +53,9 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
         className="pokemon-card"
         style={{
           position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
           backgroundColor: '#f8fafc',
           border: '2px solid #e2e8f0',
-          borderRadius: '18px',
-          minHeight: '195px',
-          width: '100%',
-          padding: '12px 10px 14px 10px',
-          boxSizing: 'border-box',
+          justifyContent: 'center',
           cursor: 'default',
         }}
       >
@@ -111,12 +94,10 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
 
       {/* Encabezado: #ID */}
       <span
+        className="card-id"
         style={{
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          fontSize: '11px',
-          fontWeight: '700',
           color: '#475569',
-          letterSpacing: '0.05em',
           zIndex: 1,
         }}
       >
@@ -125,18 +106,14 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
 
       {/* Sprite e Ilustración Central con Halo */}
       <div
+        className="sprite-wrapper"
         style={{
           position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '100%',
-          height: '100px',
           zIndex: 1,
         }}
       >
         <PokeballWatermark
-          size="85px"
+          size="115px"
           opacity={isHovered ? 0.38 : 0.30}
           rotate={isHovered ? 25 : 0}
           scale={isHovered ? 1.05 : 1}
@@ -147,10 +124,6 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
             src={spriteUrl}
             alt={pokemon.name}
             style={{
-              maxHeight: '95px',
-              maxWidth: '95px',
-              objectFit: 'contain',
-              filter: 'drop-shadow(0 6px 8px rgba(0, 0, 0, 0.16))',
               position: 'relative',
               zIndex: 1,
             }}
@@ -164,15 +137,10 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
       {/* Nombre del Pokémon */}
       <span
         translate="no"
-        className="notranslate"
+        className="notranslate card-name"
         style={{
-          fontSize: '13px',
-          fontWeight: '800',
-          textTransform: 'uppercase',
           color: '#1e293b',
-          letterSpacing: '0.5px',
           zIndex: 1,
-          margin: '4px 0 6px 0',
           wordBreak: 'break-word',
           textAlign: 'center',
           lineHeight: '1.2',
@@ -198,12 +166,8 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
           return (
             <span
               key={type.name}
+              className="type-badge"
               style={{
-                fontSize: '9.5px',
-                fontWeight: '700',
-                padding: '2px 8px',
-                borderRadius: '8px',
-                textTransform: 'uppercase',
                 color: '#ffffff',
                 backgroundColor: TYPE_BORDER_COLORS[type.name] || '#64748b',
                 boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
