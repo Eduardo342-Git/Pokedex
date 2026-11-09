@@ -15,17 +15,17 @@ const PokeballWatermark = ({ size = '140px', opacity = 0.16, color = '#ffffff', 
         zIndex: 0,
         fill: 'none',
         stroke: color,
-        strokeWidth: 6.5,
+        strokeWidth: 7,
         transition: 'all 0.3s ease',
       }}
     >
-      {/* Anillo exterior */}
+      {/* Círculo exterior perimetral */}
       <circle cx="50" cy="50" r="45" />
       {/* Línea horizontal divisoria */}
       <line x1="5" y1="50" x2="95" y2="50" />
-      {/* Botón central externo e interno */}
-      <circle cx="50" cy="50" r="15" fill={color} stroke={color} strokeWidth="1" />
-      <circle cx="50" cy="50" r="7" fill="transparent" stroke="#ffffff" strokeWidth="2.5" />
+      {/* Botón circular central externo e interno */}
+      <circle cx="50" cy="50" r="16" fill={color} stroke={color} strokeWidth="1" />
+      <circle cx="50" cy="50" r="7.5" fill="#ffffff" stroke={color} strokeWidth="3" />
     </svg>
   );
 };
