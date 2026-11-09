@@ -385,7 +385,7 @@ function App() {
             maxWidth: '860px',
             padding: '0 20px',
             boxSizing: 'border-box',
-            marginBottom: '8px',
+            marginBottom: '0',
             position: 'relative',
             zIndex: 1,
             display: 'flex',
