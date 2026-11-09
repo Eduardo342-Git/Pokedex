@@ -133,9 +133,10 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
         }}
       >
         <PokeballWatermark
-          size="145px"
-          opacity={isHovered ? 0.38 : 0.28}
-          rotate={isHovered ? 20 : 0}
+          size="78%"
+          opacity={isHovered ? 0.36 : 0.28}
+          rotate={isHovered ? 25 : 0}
+          scale={isHovered ? 1.05 : 1}
           color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}
         />
         {spriteUrl ? (
@@ -160,17 +161,17 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
         )}
       </div>
 
-      {/* Nombre: escala fluida, color marino oscuro, negrita 800 con translate="no" */}
+      {/* Nombre: en mayúsculas, semibold estilizado con translate="no" */}
       <h3
         translate="no"
         className="notranslate"
         style={{
-          margin: '0 0 8px',
-          fontSize: 'clamp(17px, 1.35vw, 22px)',
-          fontWeight: '800',
-          textTransform: 'capitalize',
-          color: '#0f172a',
-          letterSpacing: '-0.01em',
+          textTransform: 'uppercase',
+          fontWeight: '600',
+          letterSpacing: '1px',
+          fontSize: 'clamp(14px, 1.15vw, 18px)',
+          color: '#1e293b',
+          margin: '6px 0',
           wordBreak: 'break-word',
           lineHeight: '1.2',
           position: 'relative',

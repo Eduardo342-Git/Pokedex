@@ -1,4 +1,11 @@
-const PokeballWatermark = ({ size = '140px', opacity = 0.16, color = '#ffffff', rotate = 0 }) => {
+const PokeballWatermark = ({
+  size = '78%',
+  opacity = 0.28,
+  color = '#ffffff',
+  rotate = 0,
+  scale = 1,
+  style = {},
+}) => {
   return (
     <svg
       viewBox="0 0 100 100"
@@ -7,16 +14,18 @@ const PokeballWatermark = ({ size = '140px', opacity = 0.16, color = '#ffffff', 
         position: 'absolute',
         top: '50%',
         left: '50%',
-        transform: `translate(-50%, -50%) rotate(${rotate}deg)`,
+        transform: `translate(-50%, -50%) scale(${scale}) rotate(${rotate}deg)`,
         width: size,
-        height: size,
+        maxWidth: size,
+        aspectRatio: '1 / 1',
         opacity: opacity,
         pointerEvents: 'none',
         zIndex: 0,
         fill: 'none',
         stroke: color,
-        strokeWidth: 7,
-        transition: 'all 0.3s ease',
+        strokeWidth: 6.5,
+        transition: 'transform 0.4s ease, opacity 0.3s ease',
+        ...style,
       }}
     >
       {/* Círculo exterior perimetral */}
