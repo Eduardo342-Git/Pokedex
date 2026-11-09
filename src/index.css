@@ -63,22 +63,77 @@ body {
   opacity: 0.85;
 }
 
-/* Reglas responsivas para la cuadrícula expandida */
+/* Reglas responsivas para la cuadrícula */
 .pokemon-grid-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
-  padding: 12px;
   width: 100%;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 16px 20px;
+  box-sizing: border-box;
+  gap: 16px;
+  /* En pantallas grandes genera columnas de mínimo 190px (5 a 6 columnas), nunca tiras estrechas */
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+
+/* Móvil estrecho: 2 columnas perfectas */
+@media (max-width: 640px) {
+  .pokemon-grid-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 10px;
+  }
+}
+
+/* Proporción de la Tarjeta */
+.pokemon-card {
+  min-height: 190px;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 10px;
+  border-radius: 18px;
   box-sizing: border-box;
 }
 
+.pokemon-card img {
+  width: 105px;
+  height: 105px;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
 @media (max-width: 640px) {
-  .pokemon-grid-container {
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 10px;
+  .pokemon-card {
+    min-height: 165px;
     padding: 10px 8px;
   }
+  .pokemon-card img {
+    width: 85px;
+    height: 85px;
+  }
+}
+
+/* Scrollbar negra compacta, elegante y discreta */
+.thin-dark-scroll::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.thin-dark-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-dark-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(15, 23, 42, 0.45);
+  border-radius: 10px;
+}
+.thin-dark-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(15, 23, 42, 0.75);
+}
+.thin-dark-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.45) transparent;
 }
 
 /* Layout a doble pantalla abatible del PokemonModal */

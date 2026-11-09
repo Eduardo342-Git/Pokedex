@@ -36,16 +36,7 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
   const cardStyle = {
     backgroundColor: pastelBg,
     border: `3px solid ${borderColor}`,
-    borderRadius: '16px',
-    minHeight: '140px',
-    height: 'auto',
     width: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '10px 8px',
-    boxSizing: 'border-box',
     textAlign: 'center',
     cursor: pokemon ? 'pointer' : 'default',
     transition: 'all 0.25s ease',
@@ -62,19 +53,12 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
   if (loading) {
     return (
       <div
+        className="pokemon-card"
         style={{
           backgroundColor: '#f8fafc',
           border: '3px solid #e2e8f0',
-          borderRadius: '16px',
-          minHeight: '140px',
-          height: 'auto',
           width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
           justifyContent: 'center',
-          alignItems: 'center',
-          padding: '10px 8px',
-          boxSizing: 'border-box',
           cursor: 'default',
         }}
       >
@@ -96,6 +80,7 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
     <div
       role="button"
       tabIndex={0}
+      className="pokemon-card"
       onClick={() => pokemon && onSelect && onSelect(pokemon)}
       onKeyDown={(e) => {
         if ((e.key === 'Enter' || e.key === ' ') && pokemon && onSelect) {
@@ -133,11 +118,11 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
           justifyContent: 'center',
           alignItems: 'center',
           position: 'relative',
-          margin: '2px 0',
+          margin: '4px 0',
         }}
       >
         <PokeballWatermark
-          size="90px"
+          size="105px"
           opacity={isHovered ? 0.38 : 0.30}
           rotate={isHovered ? 25 : 0}
           scale={isHovered ? 1.05 : 1}
@@ -148,10 +133,6 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
             src={spriteUrl}
             alt={pokemon.name}
             style={{
-              width: '85px',
-              height: '85px',
-              objectFit: 'contain',
-              marginTop: '4px',
               filter: 'drop-shadow(0 6px 8px rgba(0, 0, 0, 0.16))',
               imageRendering: 'auto',
               position: 'relative',

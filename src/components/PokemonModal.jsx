@@ -608,6 +608,26 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
           opacity: 0.35;
           cursor: not-allowed !important;
         }
+
+        /* Scrollbar negra compacta, elegante y discreta */
+        .thin-dark-scroll::-webkit-scrollbar {
+          width: 4px;
+          height: 4px;
+        }
+        .thin-dark-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .thin-dark-scroll::-webkit-scrollbar-thumb {
+          background-color: rgba(15, 23, 42, 0.45);
+          border-radius: 10px;
+        }
+        .thin-dark-scroll::-webkit-scrollbar-thumb:hover {
+          background-color: rgba(15, 23, 42, 0.75);
+        }
+        .thin-dark-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(15, 23, 42, 0.45) transparent;
+        }
       `}</style>
 
       {/* Carcasa Principal de la Pokédex Doble Pantalla */}
@@ -899,22 +919,25 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
               />
             </div>
 
-            {/* Pantalla interior LCD izquierda con fondo pastel dinámico, llena y sin espacio muerto */}
+            {/* Pantalla interior LCD izquierda con fondo pastel dinámico */}
             <div
+              className="thin-dark-scroll"
               style={{
                 backgroundColor: pastelBg,
                 position: 'relative',
-                overflow: 'hidden',
+                overflowY: 'auto',
+                overflowX: 'hidden',
                 transition: 'background-color 0.3s ease',
                 border: `3.5px solid ${borderColor}`,
                 borderRadius: '18px',
-                padding: '16px 18px',
+                padding: '12px 10px',
                 boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.05)',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'space-between',
+                width: '100%',
+                maxHeight: isMobile ? 'min(58vh, 520px)' : 'min(68vh, 600px)',
+                boxSizing: 'border-box',
                 flex: 1,
-                maxHeight: '62vh',
               }}
             >
               {/* Micro-patrones vectoriales decorativos en las esquinas según el tipo elemental */}
@@ -1406,22 +1429,25 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
               />
             </div>
 
-            {/* Pantalla interior LCD derecha con fondo pastel dinámico y ajuste sin scroll */}
+            {/* Pantalla interior LCD derecha con fondo pastel dinámico */}
             <div
+              className="thin-dark-scroll"
               style={{
                 backgroundColor: pastelBg,
                 position: 'relative',
-                overflow: 'hidden',
+                overflowY: 'auto',
+                overflowX: 'hidden',
                 transition: 'background-color 0.3s ease',
                 border: `3.5px solid ${borderColor}`,
                 borderRadius: '18px',
-                padding: '10px 14px',
+                padding: '12px 10px',
                 boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.05)',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'space-between',
+                width: '100%',
+                maxHeight: isMobile ? 'min(58vh, 520px)' : 'min(68vh, 600px)',
+                boxSizing: 'border-box',
                 flex: 1,
-                maxHeight: '62vh',
               }}
             >
               {/* Micro-patrones vectoriales decorativos en las esquinas según el tipo elemental */}

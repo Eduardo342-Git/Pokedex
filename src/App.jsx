@@ -530,13 +530,7 @@ function App() {
           ref={gridContainerRef}
           className="pokemon-grid-container"
           style={{
-            width: '100%',
             flex: 1,
-            boxSizing: 'border-box',
-            padding: '12px',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-            gap: '12px',
             overflowY: 'auto',
             position: 'relative',
             zIndex: 1,
