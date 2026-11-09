@@ -47,6 +47,35 @@ const getBarColor = (value) => {
   return '#06b6d4';
 };
 
+const getPokemonDisplaySprite = (pokemon, isShiny) => {
+  if (!pokemon) return '';
+
+  // Ruta oficial de GIFs animados de 5ta generación en PokéAPI:
+  const animatedSprites = pokemon.sprites?.versions?.['generation-v']?.['black-white']?.animated;
+
+  if (isShiny && animatedSprites?.front_shiny) {
+    return animatedSprites.front_shiny;
+  }
+  if (!isShiny && animatedSprites?.front_default) {
+    return animatedSprites.front_default;
+  }
+
+  // Fallback de alta resolución para criaturas modernas o formas sin GIF:
+  if (isShiny) {
+    return (
+      pokemon.sprites?.other?.['official-artwork']?.front_shiny ||
+      pokemon.sprites?.front_shiny ||
+      pokemon.sprites?.other?.home?.front_shiny ||
+      ''
+    );
+  }
+  return (
+    pokemon.sprites?.other?.['official-artwork']?.front_default ||
+    pokemon.sprites?.front_default ||
+    ''
+  );
+};
+
 function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
   // Gestión de estados locales en el modal
   const [currentPokemon, setCurrentPokemon] = useState(pokemon);
@@ -316,12 +345,9 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
   );
   const formattedId = `#${String(currentPokemon.id).padStart(3, '0')}`;
 
-  // Selección reactiva del sprite según isShiny y displayPokemon
-  const spriteUrl = isShiny
-    ? displayPokemon.sprites?.other?.['official-artwork']?.front_shiny ||
-      displayPokemon.sprites?.front_shiny
-    : displayPokemon.sprites?.other?.['official-artwork']?.front_default ||
-      displayPokemon.sprites?.front_default;
+  // Selección reactiva del sprite según isShiny y displayPokemon (priorizando GIFs animados nativos de 5ta generación)
+  const spriteUrl = getPokemonDisplaySprite(displayPokemon, isShiny);
+  const isAnimatedGif = Boolean(spriteUrl?.includes('.gif'));
 
   const totalStats =
     displayPokemon.stats?.reduce((acc, curr) => acc + curr.base_stat, 0) || 0;
@@ -711,11 +737,11 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
               {/* Flujo de partículas elementales flotantes de fondo */}
               <TypeParticles
                 type={primaryType}
-                color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}
+                color={TYPE_BORDER_COLORS[primaryType] || '#38bdf8'}
               />
 
               {/* Encabezado: #ID y Nombre agrandados */}
-              <div style={{ textAlign: 'center', marginBottom: '4px', position: 'relative', zIndex: 1 }}>
+              <div style={{ textAlign: 'center', marginBottom: '4px', position: 'relative', zIndex: 2 }}>
                 <span
                   style={{
                     fontFamily: 'ui-monospace, SFMono-Regular, monospace',
@@ -754,7 +780,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                     flexWrap: 'wrap',
                     margin: '6px 0',
                     position: 'relative',
-                    zIndex: 1,
+                    zIndex: 2,
                   }}
                 >
                   {availableVarieties.map((v) => {
@@ -802,7 +828,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   alignItems: 'center',
                   marginBottom: '4px',
                   position: 'relative',
-                  zIndex: 1,
+                  zIndex: 2,
                 }}
               >
                 <button
@@ -846,6 +872,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   margin: '4px 0',
                   position: 'relative',
                   minHeight: '180px',
+                  zIndex: 2,
                 }}
               >
                 <PokeballWatermark
@@ -859,18 +886,21 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                       src={spriteUrl}
                       alt={`${displayPokemon.name}${isShiny ? ' shiny' : ''}`}
                       style={{
-                        height: '175px',
-                        maxHeight: '185px',
+                        height: isAnimatedGif ? '150px' : '175px',
+                        maxHeight: isAnimatedGif ? '160px' : '185px',
                         width: 'auto',
                         maxWidth: '100%',
                         objectFit: 'contain',
+                        imageRendering: isAnimatedGif ? 'pixelated' : 'auto',
                         filter: isShiny
                           ? 'drop-shadow(0 6px 12px rgba(234, 179, 8, 0.45))'
                           : 'drop-shadow(0 6px 10px rgba(0, 0, 0, 0.16))',
                         transition: 'filter 0.3s ease',
                         position: 'relative',
-                        zIndex: 1,
-                        animation: isFloating
+                        zIndex: 2,
+                        animation: isAnimatedGif
+                          ? 'none'
+                          : isFloating
                           ? 'pokemonHoverFloat 3.2s ease-in-out infinite'
                           : 'pokemonIdleBreath 3.4s ease-in-out infinite',
                         transformOrigin: 'bottom center',
@@ -910,7 +940,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   flexWrap: 'wrap',
                   marginBottom: '6px',
                   position: 'relative',
-                  zIndex: 1,
+                  zIndex: 2,
                 }}
               >
                 {displayPokemon.types?.map(({ type }) => {
@@ -947,7 +977,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   marginBottom: '6px',
                   flexWrap: 'wrap',
                   position: 'relative',
-                  zIndex: 1,
+                  zIndex: 2,
                 }}
               >
                 <button
@@ -1001,7 +1031,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   gap: '10px',
                   marginBottom: '6px',
                   position: 'relative',
-                  zIndex: 1,
+                  zIndex: 2,
                 }}
               >
                 <div
@@ -1086,7 +1116,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                     margin: '6px auto',
                     alignSelf: 'center',
                     position: 'relative',
-                    zIndex: 1,
+                    zIndex: 2,
                   }}
                 >
                   <span>{language === 'es' ? 'Hábitat:' : 'Habitat:'}</span>
@@ -1108,7 +1138,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   display: 'flex',
                   alignItems: 'center',
                   position: 'relative',
-                  zIndex: 1,
+                  zIndex: 2,
                 }}
               >
                 <p
@@ -1198,7 +1228,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
               {/* Flujo de partículas elementales flotantes de fondo */}
               <TypeParticles
                 type={primaryType}
-                color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}
+                color={TYPE_BORDER_COLORS[primaryType] || '#38bdf8'}
               />
 
               {/* Marca de agua Pokéball centrada sutil y grande */}
@@ -1261,7 +1291,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
               </div>
 
               {/* Contenido de la pestaña activa */}
-              <div style={{ flex: 1, position: 'relative', zIndex: 1 }}>
+              <div style={{ flex: 1, position: 'relative', zIndex: 2 }}>
                 {activeTab === 'info' && (
                   <div>
                     {/* Sección: HABILIDADES (ubicada justo arriba de Eficacia en Combate) */}
@@ -1824,7 +1854,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                     gap: '6px',
                     flexWrap: 'wrap',
                     position: 'relative',
-                    zIndex: 1,
+                    zIndex: 2,
                   }}
                 >
                   {speciesInfo.evolutionChain.map((evo, idx) => {
