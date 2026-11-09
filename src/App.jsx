@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { getPokemonList, getPokemonDetails, getAllPokemonNames } from './services/pokemonService';
+import PokemonGrid from './components/PokemonGrid';
 import PokemonCard from './components/PokemonCard';
 import PokemonModal from './components/PokemonModal';
 import { UI_TRANSLATIONS } from './utils/translations';
@@ -10,8 +11,32 @@ function App() {
 
   const [language, setLanguage] = useState('es');
   const [selectedRegion, setSelectedRegion] = useState('all');
-  const ITEMS_PER_PAGE = 12;
-  const [limit] = useState(ITEMS_PER_PAGE);
+
+  const [gridConfig, setGridConfig] = useState({ cols: 2, itemsPerPage: 12 });
+
+  useEffect(() => {
+    const updateGridResolution = () => {
+      const width = window.innerWidth;
+      let cols, rows;
+
+      // Lógica de densidad de pantalla:
+      if (width >= 2200) { cols = 8; rows = 3; }      // Ultrawide: 24 tarjetas
+      else if (width >= 1800) { cols = 7; rows = 3; } // Monitores grandes: 21 tarjetas
+      else if (width >= 1400) { cols = 6; rows = 3; } // Desktop estándar: 18 tarjetas
+      else if (width >= 1100) { cols = 5; rows = 3; } // Desktop pequeño: 15 tarjetas
+      else if (width >= 850) { cols = 4; rows = 4; }  // Laptops: 16 tarjetas
+      else if (width >= 600) { cols = 3; rows = 4; }  // Tablets: 12 tarjetas
+      else { cols = 2; rows = 6; }                    // Celulares: 12 tarjetas
+
+      setGridConfig({ cols, itemsPerPage: cols * rows });
+    };
+
+    updateGridResolution(); // Ejecutar al inicio
+    window.addEventListener('resize', updateGridResolution);
+    return () => window.removeEventListener('resize', updateGridResolution);
+  }, []);
+
+  const limit = gridConfig.itemsPerPage;
   const [pokemonList, setPokemonList] = useState([]);
   const [page, setPage] = useState(1);
   const [inputPage, setInputPage] = useState(1);
@@ -494,21 +519,20 @@ function App() {
         {/* Contenedor de la Cuadrícula */}
         <div
           ref={gridContainerRef}
-          className="pro-grid"
           style={{
             flex: 1,
             overflowY: 'auto',
             position: 'relative',
             zIndex: 1,
+            width: '100%',
           }}
         >
           {/* Estado de Carga Inicial */}
           {loading && !isSearchActive && (
             <div
               style={{
-                gridColumn: '1 / -1',
                 textAlign: 'center',
-                padding: '30px 20px',
+                padding: '40px 20px',
                 color: '#1e3a8a',
                 display: 'flex',
                 flexDirection: 'column',
@@ -537,7 +561,6 @@ function App() {
           {error && !loading && !isSearchActive && (
             <div
               style={{
-                gridColumn: '1 / -1',
                 backgroundColor: 'rgba(254, 226, 226, 0.9)',
                 backdropFilter: 'blur(8px)',
                 border: '1px solid #f87171',
@@ -546,7 +569,7 @@ function App() {
                 color: '#991b1b',
                 textAlign: 'center',
                 maxWidth: '500px',
-                margin: '0 auto',
+                margin: '30px auto',
               }}
             >
               <p style={{ margin: 0, fontWeight: 600 }}>Error: {error}</p>
@@ -557,8 +580,6 @@ function App() {
           {isSearchActive && matchedPokemons.length === 0 && (
             <div
               style={{
-                gridColumn: '1 / -1',
-                gridRow: '1 / -1',
                 backgroundColor: 'rgba(255, 255, 255, 0.85)',
                 backdropFilter: 'blur(10px)',
                 border: '1px solid rgba(255, 255, 255, 0.9)',
@@ -567,7 +588,7 @@ function App() {
                 color: '#334155',
                 textAlign: 'center',
                 maxWidth: '520px',
-                margin: 'auto',
+                margin: '40px auto',
                 boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.15)',
               }}
             >
@@ -597,33 +618,25 @@ function App() {
             </div>
           )}
 
-          {/* Modo Búsqueda: Renderiza las tarjetas directamente en la cuadrícula fija */}
-          {isSearchActive &&
-            matchedPokemons.map((pokemon) => (
-              <PokemonCard
-                key={pokemon.name}
-                pokemon={pokemon}
-                pokemonName={pokemon.name}
-                language={language}
-                onSelect={(p) => setSelectedPokemon(p)}
-                onClick={(p) => setSelectedPokemon(p)}
-              />
-            ))}
-
-          {/* Modo Catálogo Normal */}
-          {!isSearchActive &&
-            !loading &&
-            !error &&
-            pokemonList.map((pokemon) => (
-              <PokemonCard
-                key={pokemon.name}
-                pokemon={pokemon}
-                pokemonName={pokemon.name}
-                language={language}
-                onSelect={(p) => setSelectedPokemon(p)}
-                onClick={(p) => setSelectedPokemon(p)}
-              />
-            ))}
+          {/* Cuadrícula Dinámica Sincronizada con cols dinámico */}
+          {(!loading || isSearchActive) && (!isSearchActive || matchedPokemons.length > 0) && (
+            <PokemonGrid
+              cols={gridConfig.cols}
+              pokemonList={isSearchActive ? matchedPokemons : pokemonList}
+              onSelectPokemon={(p) => setSelectedPokemon(p)}
+            >
+              {(isSearchActive ? matchedPokemons : pokemonList).map((pokemon) => (
+                <PokemonCard
+                  key={pokemon.name}
+                  pokemon={pokemon}
+                  pokemonName={pokemon.name}
+                  language={language}
+                  onSelect={(p) => setSelectedPokemon(p)}
+                  onClick={(p) => setSelectedPokemon(p)}
+                />
+              ))}
+            </PokemonGrid>
+          )}
         </div>
       </main>
 
