@@ -10,7 +10,7 @@ function App() {
 
   const [language, setLanguage] = useState('es');
   const [selectedRegion, setSelectedRegion] = useState('all');
-  const ITEMS_PER_PAGE = 12;
+  const ITEMS_PER_PAGE = 24;
   const [limit] = useState(ITEMS_PER_PAGE);
   const [pokemonList, setPokemonList] = useState([]);
   const [page, setPage] = useState(1);
@@ -494,7 +494,7 @@ function App() {
         {/* Contenedor de la Cuadrícula */}
         <div
           ref={gridContainerRef}
-          className="pokemon-grid-container"
+          className="pokemon-grid-container pro-pokemon-grid"
           style={{
             flex: 1,
             overflowY: 'auto',

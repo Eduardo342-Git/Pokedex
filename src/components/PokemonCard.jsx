@@ -46,12 +46,11 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
         className="pokemon-card"
         style={{
           width: '100%',
-          minHeight: '230px',
-          height: 'auto',
+          aspectRatio: '4 / 5',
           backgroundColor: '#f8fafc',
           border: '2px solid #e2e8f0',
-          borderRadius: '20px',
-          padding: '14px 12px 16px 12px',
+          borderRadius: 'clamp(14px, 2vw, 24px)',
+          padding: '6% 5%',
           boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',
@@ -60,7 +59,7 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
           cursor: 'default',
         }}
       >
-        <p style={{ color: '#64748b', fontSize: '13px', margin: 0, fontWeight: 500 }}>
+        <p style={{ color: '#64748b', fontSize: 'clamp(11px, 1.2vw, 15px)', margin: 0, fontWeight: 500 }}>
           {language === 'es' ? 'Sintonizando...' : 'Tuning in...'}
         </p>
       </div>
@@ -68,8 +67,8 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
   }
 
   const primaryType = activePokemon.types?.[0]?.type?.name || 'normal';
-  const pastelBg = TYPE_PASTEL_COLORS?.[primaryType] || '#f1f5f9';
-  const borderColor = TYPE_BORDER_COLORS?.[primaryType] || '#94a3b8';
+  const pastelBg = TYPE_PASTEL_COLORS?.[primaryType] || '#f8fafc';
+  const borderColor = TYPE_BORDER_COLORS?.[primaryType] || '#cbd5e1';
   const artwork =
     activePokemon.sprites?.other?.['official-artwork']?.front_default ||
     activePokemon.sprites?.front_default;
@@ -85,12 +84,11 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
       className="pokemon-card"
       style={{
         width: '100%',
-        minHeight: '230px',
-        height: 'auto',
+        aspectRatio: '4 / 5', // Proporción estricta tipo carta
         backgroundColor: pastelBg,
         border: `2px solid ${borderColor}`,
-        borderRadius: '20px',
-        padding: '14px 12px 16px 12px',
+        borderRadius: 'clamp(14px, 2vw, 24px)',
+        padding: '6% 5%', // Padding basado en el ancho de la tarjeta
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
@@ -98,12 +96,11 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
         justifyContent: 'space-between',
         cursor: 'pointer',
         position: 'relative',
-        overflow: 'hidden',
         transition: 'transform 0.2s ease, box-shadow 0.2s ease',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-4px)';
-        e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.08)';
+        e.currentTarget.style.transform = 'translateY(-6px)';
+        e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.12)';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0)';
@@ -113,56 +110,55 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
       {/* Micro-patrones vectoriales decorativos en las esquinas según el tipo elemental */}
       <TypeDecorations type={primaryType} color={TYPE_BORDER_COLORS?.[primaryType]} />
 
-      {/* 1. Encabezado con #ID */}
-      <div style={{ width: '100%', textAlign: 'center', zIndex: 2 }}>
-        <span
-          style={{
-            fontSize: '12px',
-            fontWeight: '800',
-            color: '#64748b',
-            letterSpacing: '0.5px',
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          }}
-        >
-          #{String(activePokemon.id).padStart(3, '0')}
-        </span>
-      </div>
-
-      {/* 2. Centro: Contenedor con altura fija para el Sprite */}
-      <div
+      {/* ID del Pokémon */}
+      <span
         style={{
-          position: 'relative',
-          width: '100%',
-          height: '115px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '6px 0',
+          fontSize: 'clamp(11px, 1.2vw, 15px)',
+          fontWeight: '800',
+          color: '#64748b',
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
           zIndex: 2,
         }}
       >
-        {/* Halo de Pokéball decorativo */}
+        #{String(activePokemon.id).padStart(3, '0')}
+      </span>
+
+      {/* Contenedor del Sprite que ocupa el espacio restante fluidamente */}
+      <div
+        style={{
+          flex: '1 1 auto',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          margin: '4% 0',
+          zIndex: 2,
+        }}
+      >
+        {/* Halo Vectorial Relativo */}
         <div
           style={{
             position: 'absolute',
-            width: '110px',
-            height: '110px',
+            width: '75%',
+            aspectRatio: '1 / 1',
             borderRadius: '50%',
-            border: '3px solid rgba(255, 255, 255, 0.55)',
-            backgroundColor: 'rgba(255, 255, 255, 0.25)',
+            border: '3px solid rgba(255, 255, 255, 0.6)',
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
             zIndex: 1,
             pointerEvents: 'none',
           }}
         />
+        {/* Imagen del Pokémon limitando a los bordes de la tarjeta */}
         {artwork && (
           <img
             src={artwork}
             alt={activePokemon.name}
             style={{
-              maxHeight: '110px',
-              maxWidth: '110px',
+              width: '85%',
+              height: '85%',
               objectFit: 'contain',
-              filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.12))',
+              filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.15))',
               zIndex: 2,
               transition: 'transform 0.2s ease',
             }}
@@ -170,14 +166,14 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
         )}
       </div>
 
-      {/* 3. Base: Nombre + Badges de Tipos integrados sin absolute */}
+      {/* Base: Nombre y Tipos */}
       <div
         style={{
-          width: '100%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '6px',
+          gap: '4px',
+          width: '100%',
           zIndex: 2,
         }}
       >
@@ -185,31 +181,29 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
           translate="no"
           className="notranslate"
           style={{
-            fontSize: '14px',
+            fontSize: 'clamp(12px, 1.4vw, 18px)',
             fontWeight: '900',
             textTransform: 'uppercase',
             color: '#0f172a',
-            letterSpacing: '0.6px',
             textAlign: 'center',
-            lineHeight: 1.2,
+            letterSpacing: '0.5px',
           }}
         >
           {activePokemon.name}
         </span>
 
-        <div style={{ display: 'flex', gap: '5px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
           {activePokemon.types?.map((t) => (
             <span
               key={t.type.name}
               style={{
-                fontSize: '10px',
+                fontSize: 'clamp(9px, 0.9vw, 12px)',
                 fontWeight: '800',
                 textTransform: 'uppercase',
-                padding: '3px 10px',
-                borderRadius: '10px',
+                padding: '3px 8px',
+                borderRadius: '8px',
                 color: '#ffffff',
                 backgroundColor: TYPE_BORDER_COLORS?.[t.type.name] || '#64748b',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
               }}
             >
               {TYPE_NAMES?.[language]?.[t.type.name] || t.type.name}

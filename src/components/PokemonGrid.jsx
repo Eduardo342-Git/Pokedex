@@ -2,31 +2,47 @@ import PokemonCard from './PokemonCard';
 
 const PokemonGrid = ({ pokemonList = [], onSelectPokemon, children }) => {
   return (
-    <div
-      className="pokemon-grid-container"
-      style={{
-        width: '100%',
-        maxWidth: '100%',
-        margin: '0 auto',
-        padding: '16px 24px 32px 24px',
-        boxSizing: 'border-box',
-        display: 'grid',
-        /* Columnas fluidas: mínimo 200px en PC, nunca se apelmazan ni se montan */
-        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-        gap: '20px',
-        justifyContent: 'center',
-      }}
-    >
+    <div style={{ width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
       <style>{`
-        @media (max-width: 640px) {
-          .responsive-pokemon-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 12px !important;
-            padding: 12px 10px 24px 10px !important;
+        .pro-pokemon-grid {
+          display: grid;
+          width: 100%;
+          padding: 24px;
+          gap: 24px;
+          box-sizing: border-box;
+          /* Móvil por defecto: 2 columnas */
+          grid-template-columns: repeat(2, 1fr);
+        }
+        
+        /* Tablets: 3 columnas */
+        @media (min-width: 640px) {
+          .pro-pokemon-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            padding: 24px 32px;
+          }
+        }
+        
+        /* Laptops: 4 columnas */
+        @media (min-width: 1024px) {
+          .pro-pokemon-grid {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 28px;
+            padding: 32px 40px;
+          }
+        }
+        
+        /* Desktop / Monitores grandes: 6 columnas exactas de margen a margen */
+        @media (min-width: 1440px) {
+          .pro-pokemon-grid {
+            grid-template-columns: repeat(6, 1fr);
+            gap: 32px;
+            padding: 40px 48px;
           }
         }
       `}</style>
-      <div className="responsive-pokemon-grid" style={{ display: 'contents' }}>
+
+      <div className="pro-pokemon-grid">
         {children
           ? children
           : pokemonList.map((pokemon) => (
