@@ -3,16 +3,17 @@ import { getPokemonList, getPokemonDetails, getAllPokemonNames } from './service
 import PokemonCard from './components/PokemonCard';
 import PokemonModal from './components/PokemonModal';
 import { UI_TRANSLATIONS } from './utils/translations';
+import { REGIONS } from './utils/regions';
 
 function App() {
   const gridContainerRef = useRef(null);
 
   const [language, setLanguage] = useState('es');
+  const [selectedRegion, setSelectedRegion] = useState('all');
   const [limit, setLimit] = useState(
     typeof window !== 'undefined' && window.innerWidth >= 1024 ? 21 : 12
   );
   const [pokemonList, setPokemonList] = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
   const [inputPage, setInputPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -71,20 +72,33 @@ function App() {
     };
   }, []);
 
-  const totalPages = Math.ceil(totalCount / limit) || 1;
+  const currentRegion = useMemo(() => {
+    return REGIONS.find((r) => r.id === selectedRegion) || REGIONS[0];
+  }, [selectedRegion]);
 
-  // Carga inicial y por paginación (reactiva a page y limit)
+  const totalPages = Math.ceil(currentRegion.limit / limit) || 1;
+
+  // Carga inicial y por paginación (reactiva a page, limit y región seleccionada)
   useEffect(() => {
     let isMounted = true;
     const loadData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const offset = (page - 1) * limit;
-        const data = await getPokemonList(limit, offset);
+        const actualOffset = currentRegion.offset + (page - 1) * limit;
+        const remainingInRegion = currentRegion.limit - (page - 1) * limit;
+        const fetchLimit = Math.max(0, Math.min(limit, remainingInRegion));
+
+        if (fetchLimit <= 0) {
+          if (isMounted) {
+            setPokemonList([]);
+          }
+          return;
+        }
+
+        const data = await getPokemonList(fetchLimit, actualOffset);
         if (isMounted) {
           setPokemonList(data.results || []);
-          setTotalCount(data.count || 0);
         }
       } catch (err) {
         if (isMounted) setError(err.message);
@@ -96,7 +110,13 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, [page, limit]);
+  }, [page, limit, currentRegion]);
+
+  const handleRegionChange = (newRegionId) => {
+    setSelectedRegion(newRegionId);
+    setPage(1);
+    setInputPage(1);
+  };
 
   // Búsqueda global instantánea en memoria (por prefijos o fragmentos)
   const query = search.trim().toLowerCase();
@@ -134,9 +154,10 @@ function App() {
   const handleRandomPokemon = async () => {
     try {
       setLoading(true);
-      // Total canónico de Pokémon en la PokéAPI (1025) o totalCount si ya está cargado
-      const maxId = totalCount > 0 ? Math.min(totalCount, 1025) : 1025;
-      const randomId = Math.floor(Math.random() * maxId) + 1;
+      // Rango oficial acotado a la región seleccionada
+      const minId = currentRegion.offset + 1;
+      const maxId = currentRegion.offset + currentRegion.limit;
+      const randomId = Math.floor(Math.random() * (maxId - minId + 1)) + minId;
 
       // Obtener los detalles del Pokémon aleatorio
       const randomData = await getPokemonDetails(randomId);
@@ -332,9 +353,7 @@ function App() {
           >
             {isSearchActive
               ? `${matchedPokemons.length} ${language === 'es' ? 'resultado' : 'result'}${matchedPokemons.length === 1 ? '' : 's'}`
-              : totalCount > 0
-              ? `${totalCount} ${UI_TRANSLATIONS[language].totalPokemon}`
-              : 'Holo-Net'}
+              : `${currentRegion.limit} ${UI_TRANSLATIONS[language].totalPokemon}`}
           </div>
         </div>
       </header>
@@ -354,11 +373,11 @@ function App() {
           overflow: 'hidden',
         }}
       >
-        {/* Barra de Búsqueda Translúcida y Botón Aleatorio */}
+        {/* Barra de Búsqueda Translúcida, Botón Aleatorio y Selector de Región */}
         <div
           style={{
             width: '100%',
-            maxWidth: '680px',
+            maxWidth: '860px',
             padding: '0 20px',
             boxSizing: 'border-box',
             marginBottom: '8px',
@@ -465,6 +484,31 @@ function App() {
             <span>🎲</span>
             <span>{UI_TRANSLATIONS[language].randomBtn}</span>
           </button>
+
+          {/* Selector de Región */}
+          <select
+            value={selectedRegion}
+            onChange={(e) => handleRegionChange(e.target.value)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '20px',
+              border: '1px solid #cbd5e1',
+              backgroundColor: '#ffffff',
+              fontSize: '13px',
+              fontWeight: '600',
+              color: '#1e293b',
+              outline: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {REGIONS.map((reg) => (
+              <option key={reg.id} value={reg.id}>
+                {language === 'es' ? reg.name : reg.nameEn}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Contenedor de la Cuadrícula */}

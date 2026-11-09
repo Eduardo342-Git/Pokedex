@@ -10,3 +10,4 @@ export const REGIONS = [
   { id: 'galar', name: 'Galar', nameEn: 'Galar', offset: 809, limit: 96 },
   { id: 'paldea', name: 'Paldea', nameEn: 'Paldea', offset: 905, limit: 120 }
 ];
+
