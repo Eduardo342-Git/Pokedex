@@ -9,6 +9,7 @@ import {
 } from '../services/pokemonService';
 import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
 import { UI_TRANSLATIONS, TYPE_NAMES } from '../utils/translations';
+import PokeballWatermark from './PokeballWatermark';
 
 const STAT_LABELS = {
   hp: 'HP',
@@ -370,8 +371,8 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 position: 'relative',
                 overflow: 'hidden',
                 transition: 'background-color 0.3s ease',
-                border: `2px solid ${borderColor}`,
-                borderRadius: '16px',
+                border: `3.5px solid ${borderColor}`,
+                borderRadius: '18px',
                 padding: '10px 14px',
                 boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.05)',
                 display: 'flex',
@@ -380,20 +381,6 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 maxHeight: '62vh',
               }}
             >
-              {/* Marca de agua Pokéball decorativa */}
-              <div
-                style={{
-                  position: 'absolute',
-                  right: '-30px',
-                  bottom: '-30px',
-                  width: '200px',
-                  height: '200px',
-                  opacity: 0.08,
-                  pointerEvents: 'none',
-                  backgroundImage: `radial-gradient(circle, #000 20%, transparent 21%), radial-gradient(circle, transparent 35%, #000 36%, #000 44%, transparent 45%)`,
-                  backgroundSize: '100% 100%',
-                }}
-              />
               {/* Encabezado: #ID y Nombre */}
               <div style={{ textAlign: 'center', marginBottom: '6px' }}>
                 <span
@@ -464,7 +451,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 </button>
               </div>
 
-              {/* Sprite Oficial centrado con altura compacta */}
+              {/* Sprite Oficial centrado con altura compacta y Pokéball concéntrica */}
               <div
                 style={{
                   display: 'flex',
@@ -486,8 +473,10 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                     justifyContent: 'center',
                     border: isShiny ? '2px solid #eab308' : '1px solid #cbd5e1',
                     transition: 'all 0.3s ease',
+                    position: 'relative',
                   }}
                 >
+                  <PokeballWatermark size="160px" opacity={0.22} color="#ffffff" />
                   {spriteUrl ? (
                     <img
                       src={spriteUrl}
@@ -502,10 +491,14 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                           ? 'drop-shadow(0 4px 8px rgba(234, 179, 8, 0.45))'
                           : 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15))',
                         transition: 'filter 0.3s ease',
+                        position: 'relative',
+                        zIndex: 1,
                       }}
                     />
                   ) : (
-                    <span style={{ color: '#94a3b8' }}>{UI_TRANSLATIONS[language].noImage}</span>
+                    <span style={{ color: '#94a3b8', position: 'relative', zIndex: 1 }}>
+                      {UI_TRANSLATIONS[language].noImage}
+                    </span>
                   )}
                 </div>
               </div>
@@ -745,8 +738,8 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 position: 'relative',
                 overflow: 'hidden',
                 transition: 'background-color 0.3s ease',
-                border: `2px solid ${borderColor}`,
-                borderRadius: '16px',
+                border: `3.5px solid ${borderColor}`,
+                borderRadius: '18px',
                 padding: '10px 14px',
                 boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.05)',
                 display: 'flex',
@@ -756,20 +749,8 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 maxHeight: '62vh',
               }}
             >
-              {/* Marca de agua Pokéball decorativa */}
-              <div
-                style={{
-                  position: 'absolute',
-                  right: '-30px',
-                  bottom: '-30px',
-                  width: '200px',
-                  height: '200px',
-                  opacity: 0.08,
-                  pointerEvents: 'none',
-                  backgroundImage: `radial-gradient(circle, #000 20%, transparent 21%), radial-gradient(circle, transparent 35%, #000 36%, #000 44%, transparent 45%)`,
-                  backgroundSize: '100% 100%',
-                }}
-              />
+              {/* Marca de agua Pokéball centrada sutil y grande */}
+              <PokeballWatermark size="240px" opacity={0.08} color="#ffffff" />
 
               {/* Pestañas de Navegación: Información / Movimientos */}
               <div

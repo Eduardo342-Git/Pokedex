@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getPokemonDetails } from '../services/pokemonService';
 import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
 import { TYPE_NAMES } from '../utils/translations';
+import PokeballWatermark from './PokeballWatermark';
 
 function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
   const [pokemon, setPokemon] = useState(null);
@@ -28,13 +29,13 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
   }, [pokemonName]);
 
   const primaryType = pokemon?.types?.[0]?.type?.name || 'normal';
-  const borderColor = TYPE_BORDER_COLORS[primaryType] || '#e2e8f0';
+  const borderColor = TYPE_BORDER_COLORS[primaryType] || '#cbd5e1';
   const pastelBg = TYPE_PASTEL_COLORS[primaryType] || '#f8fafc';
 
   const cardStyle = {
     backgroundColor: pastelBg,
-    border: `2px solid ${borderColor}`,
-    borderRadius: '16px',
+    border: `3.5px solid ${borderColor}`,
+    borderRadius: '18px',
     height: '100%',
     width: '100%',
     display: 'flex',
@@ -49,8 +50,10 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
     transform: isHovered && pokemon ? 'translateY(-4px)' : 'translateY(0)',
     boxShadow:
       isHovered && pokemon
-        ? `0 8px 20px ${borderColor}50`
-        : `0 4px 12px ${borderColor}25`,
+        ? `0 8px 24px ${borderColor}55`
+        : `0 4px 14px ${borderColor}30`,
+    position: 'relative',
+    overflow: 'hidden',
     userSelect: 'none',
   };
 
@@ -59,8 +62,8 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
       <div
         style={{
           backgroundColor: '#f8fafc',
-          border: '2px solid #e2e8f0',
-          borderRadius: '16px',
+          border: '3.5px solid #e2e8f0',
+          borderRadius: '18px',
           height: '100%',
           width: '100%',
           display: 'flex',
@@ -109,12 +112,14 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
           fontWeight: 600,
           color: '#64748b',
           letterSpacing: '0.05em',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         {formattedId}
       </span>
 
-      {/* Sprite / Imagen del Pokémon: flex: 1, centrado y escala fluida */}
+      {/* Sprite / Imagen del Pokémon: flex: 1, centrado con Pokéball de fondo */}
       <div
         style={{
           width: '100%',
@@ -124,8 +129,15 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
           alignItems: 'center',
           margin: '4px 0',
           minHeight: '90px',
+          position: 'relative',
         }}
       >
+        <PokeballWatermark
+          size="115px"
+          opacity={isHovered ? 0.22 : 0.18}
+          rotate={isHovered ? 20 : 0}
+          color="#ffffff"
+        />
         {spriteUrl ? (
           <img
             src={spriteUrl}
@@ -137,11 +149,13 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
               objectFit: 'contain',
               filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.12))',
               imageRendering: 'auto',
+              position: 'relative',
+              zIndex: 1,
             }}
             loading="lazy"
           />
         ) : (
-          <div style={{ height: 'clamp(90px, 9vw, 130px)' }} />
+          <div style={{ height: 'clamp(90px, 9vw, 130px)', position: 'relative', zIndex: 1 }} />
         )}
       </div>
 
@@ -158,6 +172,8 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
           letterSpacing: '-0.01em',
           wordBreak: 'break-word',
           lineHeight: '1.2',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         {pokemon.name}
@@ -171,6 +187,8 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
           flexWrap: 'wrap',
           justifyContent: 'center',
           alignItems: 'center',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         {pokemon.types?.map(({ type }) => {
