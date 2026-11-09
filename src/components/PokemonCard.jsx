@@ -3,6 +3,7 @@ import { getPokemonDetails } from '../services/pokemonService';
 import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
 import { TYPE_NAMES } from '../utils/translations';
 import PokeballWatermark from './PokeballWatermark';
+import TypeDecorations from './TypeDecorations';
 
 function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
   const [pokemon, setPokemon] = useState(null);
@@ -104,6 +105,9 @@ function PokemonCard({ pokemonName, onSelect, language = 'es' }) {
       onMouseLeave={() => setIsHovered(false)}
       style={cardStyle}
     >
+      {/* Micro-patrones vectoriales decorativos en las esquinas según el tipo elemental */}
+      <TypeDecorations type={primaryType} color={TYPE_BORDER_COLORS[primaryType]} />
+
       {/* Número (#001): fuente monoespaciada legible, tamaño fluido */}
       <span
         style={{
