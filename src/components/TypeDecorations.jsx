@@ -175,3 +175,4 @@ const TypeDecorations = ({ type = 'normal', color = '#94a3b8' }) => {
 };
 
 export default TypeDecorations;
+
