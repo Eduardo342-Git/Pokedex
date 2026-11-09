@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
 import {
   getPokemonDetails,
   getPokemonTypeRelations,
-  getPokemonEvolutions,
   getPokemonSpeciesData,
   getAbilityName,
   getPokemonMovesCategorized,
@@ -12,6 +11,7 @@ import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/po
 import { UI_TRANSLATIONS, TYPE_NAMES } from '../utils/translations';
 import PokeballWatermark from './PokeballWatermark';
 import TypeDecorations from './TypeDecorations';
+import StatRadarChart from './StatRadarChart';
 
 const STAT_LABELS = {
   hp: 'HP',
@@ -20,6 +20,19 @@ const STAT_LABELS = {
   'special-attack': 'SP.ATK',
   'special-defense': 'SP.DEF',
   speed: 'SPD',
+};
+
+const HABITAT_LABELS = {
+  cave: { es: '🪨 Cueva', en: '🪨 Cave' },
+  forest: { es: '🌲 Bosque', en: '🌲 Forest' },
+  grassland: { es: '🌿 Pradera', en: '🌿 Grassland' },
+  mountain: { es: '⛰️ Montaña', en: '⛰️ Mountain' },
+  rare: { es: '✨ Raro', en: '✨ Rare' },
+  'rough-terrain': { es: '🏜️ Terreno Escarpado', en: '🏜️ Rough Terrain' },
+  sea: { es: '🌊 Mar', en: '🌊 Sea' },
+  urban: { es: '🏙️ Urbano', en: '🏙️ Urban' },
+  'waters-edge': { es: '🏖️ Orilla', en: "🏖️ Water's Edge" },
+  unknown: { es: '❓ Desconocido', en: '❓ Unknown' },
 };
 
 const getBarColor = (value) => {
@@ -34,12 +47,12 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
   const [prevPokemonProp, setPrevPokemonProp] = useState(pokemon);
   const [activeVariety, setActiveVariety] = useState(null); // guarda los datos del pokemon de la forma activa
   const [availableVarieties, setAvailableVarieties] = useState([]);
+  const [statView, setStatView] = useState('bars'); // 'bars' | 'radar'
   const [typeRelations, setTypeRelations] = useState({
     strongAgainst: [],
     weakAgainst: [],
     notEffectiveAgainst: [],
   });
-  const [evolutionChain, setEvolutionChain] = useState([]);
   const [speciesInfo, setSpeciesInfo] = useState(null);
   const [isShiny, setIsShiny] = useState(false);
   const [loadingCombatData, setLoadingCombatData] = useState(false);
@@ -105,14 +118,18 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
             setActiveVariety(null);
           }
         }
-        const [evolutions, species] = await Promise.all([
-          getPokemonEvolutions(currentPokemon.name),
-          getPokemonSpeciesData(currentPokemon.name, language),
-        ]);
+        const species = await getPokemonSpeciesData(currentPokemon.name, language);
 
         if (isMounted) {
-          setEvolutionChain(evolutions || []);
-          setSpeciesInfo(species || { description: '', genus: '', varieties: [] });
+          setSpeciesInfo(
+            species || {
+              description: '',
+              genus: '',
+              varieties: [],
+              habitat: 'unknown',
+              evolutionChain: [],
+            }
+          );
           setAvailableVarieties(species?.varieties || []);
         }
       } catch (error) {
@@ -189,14 +206,6 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
   }, [displayPokemon, language]);
 
   if (!currentPokemon) return null;
-
-  // Lógica de navegación de evoluciones
-  const currentIndex = evolutionChain.indexOf(currentPokemon.name.toLowerCase());
-  const preEvolutionName = currentIndex > 0 ? evolutionChain[currentIndex - 1] : null;
-  const nextEvolutionName =
-    currentIndex !== -1 && currentIndex < evolutionChain.length - 1
-      ? evolutionChain[currentIndex + 1]
-      : null;
 
   // Función de cambio rápido de evolución
   const handleNavigateEvolution = async (targetName) => {
@@ -803,6 +812,42 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 </div>
               </div>
 
+              {/* Cápsula de Hábitat Natural */}
+              {speciesInfo?.habitat && speciesInfo.habitat !== 'unknown' && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '6px',
+                    position: 'relative',
+                    zIndex: 1,
+                  }}
+                >
+                  <span
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.82)',
+                      border: '1px solid rgba(0, 0, 0, 0.08)',
+                      borderRadius: '9999px',
+                      padding: '3px 12px',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      color: '#475569',
+                      letterSpacing: '0.02em',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <span style={{ color: '#64748b', fontWeight: 600 }}>
+                      {language === 'es' ? 'Hábitat:' : 'Habitat:'}
+                    </span>{' '}
+                    {HABITAT_LABELS[speciesInfo.habitat]?.[language] || speciesInfo.habitat}
+                  </span>
+                </div>
+              )}
+
               {/* Caja de Texto de la Pokédex (Lore) con altura balanceada */}
               <div
                 style={{
@@ -1230,67 +1275,102 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                         >
                           {UI_TRANSLATIONS[language].baseStats}
                         </span>
-                        <span
-                          style={{
-                            fontSize: '0.78rem',
-                            fontWeight: 800,
-                            color: '#0f172a',
-                          }}
-                        >
-                          {UI_TRANSLATIONS[language].total}: {totalStats}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setStatView((prev) => (prev === 'bars' ? 'radar' : 'bars'))
+                            }
+                            style={{
+                              backgroundColor: 'rgba(241, 245, 249, 0.95)',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '12px',
+                              padding: '2px 8px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              color: '#334155',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.2s',
+                              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                            }}
+                          >
+                            {statView === 'bars' ? '🕸️ Radar' : '📊 Barras'}
+                          </button>
+                          <span
+                            style={{
+                              fontSize: '0.78rem',
+                              fontWeight: 800,
+                              color: '#0f172a',
+                            }}
+                          >
+                            {UI_TRANSLATIONS[language].total}: {totalStats}
+                          </span>
+                        </div>
                       </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                        {displayPokemon.stats?.map((s) => {
-                          const label = STAT_LABELS[s.stat.name] || s.stat.name.toUpperCase();
-                          const val = s.base_stat;
-                          const percentage = Math.min(100, (val / 255) * 100);
-                          const barColor = getBarColor(val);
+                      {statView === 'radar' ? (
+                        <div style={{ padding: '4px 0' }}>
+                          <StatRadarChart
+                            stats={displayPokemon.stats?.map((s) => s.base_stat) || []}
+                            color={TYPE_BORDER_COLORS[primaryType] || '#22c55e'}
+                            size={185}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          {displayPokemon.stats?.map((s) => {
+                            const label = STAT_LABELS[s.stat.name] || s.stat.name.toUpperCase();
+                            const val = s.base_stat;
+                            const percentage = Math.min(100, (val / 255) * 100);
+                            const barColor = getBarColor(val);
 
-                          return (
-                            <div
-                              key={s.stat.name}
-                              style={{
-                                display: 'grid',
-                                gridTemplateColumns: '50px 28px 1fr',
-                                alignItems: 'center',
-                                gap: '6px',
-                                fontSize: '0.72rem',
-                              }}
-                            >
-                              <span style={{ fontWeight: 600, color: '#64748b' }}>{label}</span>
-                              <span
-                                style={{
-                                  fontWeight: 700,
-                                  color: '#0f172a',
-                                  textAlign: 'right',
-                                }}
-                              >
-                                {val}
-                              </span>
+                            return (
                               <div
+                                key={s.stat.name}
                                 style={{
-                                  height: '6px',
-                                  backgroundColor: '#e2e8f0',
-                                  borderRadius: '9999px',
-                                  overflow: 'hidden',
+                                  display: 'grid',
+                                  gridTemplateColumns: '50px 28px 1fr',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  fontSize: '0.72rem',
                                 }}
                               >
+                                <span style={{ fontWeight: 600, color: '#64748b' }}>{label}</span>
+                                <span
+                                  style={{
+                                    fontWeight: 700,
+                                    color: '#0f172a',
+                                    textAlign: 'right',
+                                  }}
+                                >
+                                  {val}
+                                </span>
                                 <div
                                   style={{
-                                    height: '100%',
-                                    width: `${percentage}%`,
-                                    backgroundColor: barColor,
+                                    height: '6px',
+                                    backgroundColor: '#e2e8f0',
                                     borderRadius: '9999px',
-                                    transition: 'width 0.4s ease',
+                                    overflow: 'hidden',
                                   }}
-                                />
+                                >
+                                  <div
+                                    style={{
+                                      height: '100%',
+                                      width: `${percentage}%`,
+                                      backgroundColor: barColor,
+                                      borderRadius: '9999px',
+                                      transition: 'width 0.4s ease',
+                                    }}
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1474,76 +1554,110 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 )}
               </div>
 
-              {/* Botonera de Evoluciones al pie */}
-              {(preEvolutionName || nextEvolutionName) && (
+              {/* Cadena Evolutiva Visual Interactiva */}
+              {speciesInfo?.evolutionChain && speciesInfo.evolutionChain.length > 1 && (
                 <div
                   style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: '8px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+                    border: '1px solid rgba(0, 0, 0, 0.08)',
+                    borderRadius: '12px',
+                    padding: '6px 10px',
                     marginTop: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    flexWrap: 'wrap',
+                    position: 'relative',
+                    zIndex: 1,
                   }}
                 >
-                  {preEvolutionName && (
-                    <button
-                      type="button"
-                      onClick={() => handleNavigateEvolution(preEvolutionName)}
-                      disabled={loadingCombatData}
-                      style={{
-                        flex: 1,
-                        padding: '8px 12px',
-                        backgroundColor: '#334155',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        cursor: loadingCombatData ? 'not-allowed' : 'pointer',
-                        opacity: loadingCombatData ? 0.6 : 1,
-                        textTransform: 'capitalize',
-                        transition: 'background-color 0.2s',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!loadingCombatData) e.currentTarget.style.backgroundColor = '#1e293b';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!loadingCombatData) e.currentTarget.style.backgroundColor = '#334155';
-                      }}
-                    >
-                      ◀ <span translate="no" className="notranslate">{preEvolutionName}</span>
-                    </button>
-                  )}
-                  {nextEvolutionName && (
-                    <button
-                      type="button"
-                      onClick={() => handleNavigateEvolution(nextEvolutionName)}
-                      disabled={loadingCombatData}
-                      style={{
-                        flex: 1,
-                        padding: '8px 12px',
-                        backgroundColor: '#e11d48',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        cursor: loadingCombatData ? 'not-allowed' : 'pointer',
-                        opacity: loadingCombatData ? 0.6 : 1,
-                        textTransform: 'capitalize',
-                        transition: 'background-color 0.2s',
-                        boxShadow: '0 2px 4px rgba(225, 29, 72, 0.25)',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!loadingCombatData) e.currentTarget.style.backgroundColor = '#be123c';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!loadingCombatData) e.currentTarget.style.backgroundColor = '#e11d48';
-                      }}
-                    >
-                      <span translate="no" className="notranslate">{nextEvolutionName}</span> ▶
-                    </button>
-                  )}
+                  {speciesInfo.evolutionChain.map((evo, idx) => {
+                    const isActive = currentPokemon.name.toLowerCase() === evo.name.toLowerCase();
+                    return (
+                      <Fragment key={evo.name}>
+                        {idx > 0 && (
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '0 2px',
+                            }}
+                          >
+                            {evo.trigger && (
+                              <span
+                                style={{
+                                  fontSize: '9px',
+                                  fontWeight: '700',
+                                  color: '#0284c7',
+                                  textTransform: 'capitalize',
+                                  whiteSpace: 'nowrap',
+                                  lineHeight: '1',
+                                  marginBottom: '2px',
+                                }}
+                              >
+                                {evo.trigger}
+                              </span>
+                            )}
+                            <span style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1' }}>
+                              ➔
+                            </span>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleNavigateEvolution(evo.name)}
+                          disabled={loadingCombatData || isActive}
+                          title={`${evo.name} (#${evo.id})`}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            background: isActive
+                              ? 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)'
+                              : 'transparent',
+                            border: isActive
+                              ? `2.5px solid ${TYPE_BORDER_COLORS[primaryType] || '#0284c7'}`
+                              : '1.5px solid transparent',
+                            borderRadius: '10px',
+                            padding: '3px 6px',
+                            cursor: isActive || loadingCombatData ? 'default' : 'pointer',
+                            opacity: loadingCombatData && !isActive ? 0.6 : 1,
+                            transition: 'all 0.2s ease',
+                            boxShadow: isActive ? '0 2px 6px rgba(0, 0, 0, 0.12)' : 'none',
+                          }}
+                        >
+                          <img
+                            src={evo.sprite}
+                            alt={evo.name}
+                            style={{
+                              width: '36px',
+                              height: '36px',
+                              objectFit: 'contain',
+                              filter: isActive
+                                ? 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))'
+                                : 'grayscale(20%)',
+                            }}
+                          />
+                          <span
+                            translate="no"
+                            className="notranslate"
+                            style={{
+                              fontSize: '10px',
+                              fontWeight: isActive ? '800' : '600',
+                              color: isActive ? '#0f172a' : '#64748b',
+                              textTransform: 'capitalize',
+                              marginTop: '2px',
+                            }}
+                          >
+                            {evo.name}
+                          </span>
+                        </button>
+                      </Fragment>
+                    );
+                  })}
                 </div>
               )}
             </div>

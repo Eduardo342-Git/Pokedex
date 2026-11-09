@@ -68,10 +68,29 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es') => {
         }))
       : [];
 
+    // 4. Extraer hábitat
+    const habitat = data.habitat ? data.habitat.name : 'unknown';
+
+    // 5. Extraer y procesar cadena evolutiva
+    let evolutionChain = [];
+    const evolutionChainUrl = data.evolution_chain?.url;
+    if (evolutionChainUrl) {
+      try {
+        const evoResponse = await axios.get(evolutionChainUrl);
+        if (evoResponse.data?.chain) {
+          evolutionChain = parseEvolutionChain(evoResponse.data.chain, cleanIdentifier, lang);
+        }
+      } catch (evoErr) {
+        console.warn('Error al obtener la cadena de evolución:', evoErr);
+      }
+    }
+
     return {
       description,
       genus,
       varieties,
+      habitat,
+      evolutionChain,
     };
   } catch (error) {
     console.error(`Error al obtener especie/lore de "${pokemonIdOrName}":`, error);
@@ -82,8 +101,64 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es') => {
           : 'Pokédex information currently unavailable.',
       genus: lang === 'es' ? 'Pokémon Desconocido' : 'Unknown Pokémon',
       varieties: [],
+      habitat: 'unknown',
+      evolutionChain: [],
     };
   }
+};
+
+const parseEvolutionChain = (chainNode, targetName = '', lang = 'es') => {
+  const evolutions = [];
+  let current = chainNode;
+
+  while (current && current.species) {
+    const speciesName = current.species.name;
+    const urlParts = current.species.url ? current.species.url.split('/').filter(Boolean) : [];
+    const id = urlParts[urlParts.length - 1];
+
+    let nextEvo = null;
+    if (Array.isArray(current.evolves_to) && current.evolves_to.length > 0) {
+      if (current.evolves_to.length === 1) {
+        nextEvo = current.evolves_to[0];
+      } else {
+        const targetBranch = current.evolves_to.find((branch) => {
+          let b = branch;
+          while (b) {
+            if (b.species?.name?.toLowerCase() === targetName.toLowerCase()) return true;
+            b = b.evolves_to?.[0];
+          }
+          return false;
+        });
+        nextEvo = targetBranch || current.evolves_to[0];
+      }
+    }
+
+    let triggerDetails = null;
+    if (nextEvo && Array.isArray(nextEvo.evolution_details) && nextEvo.evolution_details.length > 0) {
+      const d = nextEvo.evolution_details[0];
+      if (d.min_level) {
+        triggerDetails = `Nv. ${d.min_level}`;
+      } else if (d.item) {
+        triggerDetails = d.item.name.replace(/-/g, ' ');
+      } else if (d.trigger?.name === 'trade') {
+        triggerDetails = lang === 'es' ? 'Intercambio' : 'Trade';
+      } else if (d.min_happiness) {
+        triggerDetails = lang === 'es' ? 'Amistad' : 'Friendship';
+      } else {
+        triggerDetails = lang === 'es' ? 'Especial' : 'Special';
+      }
+    }
+
+    evolutions.push({
+      name: speciesName,
+      id: parseInt(id, 10),
+      sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`,
+      trigger: triggerDetails,
+    });
+
+    current = nextEvo;
+  }
+  return evolutions;
 };
 
 const formsCache = {};
