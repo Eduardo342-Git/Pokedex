@@ -636,3 +636,48 @@ export const translateMovesBatch = async (moveList, lang = 'es') => {
   });
   return Promise.all(promises);
 };
+
+/**
+ * Categoriza y traduce los movimientos del Pokémon por método (nivel, MT/MO, huevo, tutor)
+ */
+export const categorizeAndTranslateMoves = async (movesArray, lang = 'es') => {
+  if (!movesArray || movesArray.length === 0) return { levelUp: [], machine: [], egg: [], tutor: [] };
+
+  // Mapear cada movimiento con su método más reciente
+  const parsedMoves = movesArray.map((m) => {
+    // Tomar el último grupo de versión disponible (la versión más moderna en la que aprende el ataque)
+    const latestVersion = m.version_group_details && m.version_group_details.length > 0
+      ? m.version_group_details[m.version_group_details.length - 1]
+      : null;
+    return {
+      rawName: m.move.name,
+      method: latestVersion?.move_learn_method?.name || 'level-up',
+      level: latestVersion?.level_learned_at || 0
+    };
+  });
+
+  // Clasificar en grupos
+  const levelUpMoves = parsedMoves.filter(m => m.method === 'level-up').sort((a, b) => a.level - b.level);
+  const machineMoves = parsedMoves.filter(m => m.method === 'machine');
+  const eggMoves = parsedMoves.filter(m => m.method === 'egg');
+  const tutorMoves = parsedMoves.filter(m => m.method === 'tutor');
+
+  // Función interna para traducir un subconjunto
+  const resolveGroup = async (group) => {
+    return Promise.all(
+      group.map(async (item) => ({
+        ...item,
+        displayName: await getTranslatedMoveName(item.rawName, lang)
+      }))
+    );
+  };
+
+  const [levelUp, machine, egg, tutor] = await Promise.all([
+    resolveGroup(levelUpMoves),
+    resolveGroup(machineMoves),
+    resolveGroup(eggMoves),
+    resolveGroup(tutorMoves)
+  ]);
+
+  return { levelUp, machine, egg, tutor };
+};

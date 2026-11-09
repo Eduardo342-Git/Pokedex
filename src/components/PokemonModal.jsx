@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment } from 'react';
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import {
   getPokemonDetails,
   getPokemonTypeRelations,
@@ -6,7 +6,7 @@ import {
   getAbilityName,
   getPokemonFormData,
   getHighResArtwork,
-  translateMovesBatch,
+  categorizeAndTranslateMoves,
 } from '../services/pokemonService';
 import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
 import { UI_TRANSLATIONS, TYPE_NAMES } from '../utils/translations';
@@ -67,8 +67,12 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
   const [lensFlash, setLensFlash] = useState(false);
   const [translatedAbilities, setTranslatedAbilities] = useState([]);
   const [activeTab, setActiveTab] = useState('info'); // 'info' | 'moves'
-  const [translatedMoves, setTranslatedMoves] = useState([]);
   const [isLoadingMoves, setIsLoadingMoves] = useState(false);
+  const [moveCategory, setMoveCategory] = useState('levelUp'); // 'levelUp' | 'machine' | 'egg'
+  const [categorizedMoves, setCategorizedMoves] = useState({ levelUp: [], machine: [], egg: [], tutor: [] });
+  const [isScanning, setIsScanning] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [spawnKey, setSpawnKey] = useState('');
   const prevPokemonNameRef = useRef(currentPokemon?.name);
   const currentPokemonRef = useRef(currentPokemon);
 
@@ -87,30 +91,73 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
 
   // Forma activa (displayPokemon toma la variedad seleccionada o el Pokémon base)
   const displayPokemon = activeVariety || currentPokemon;
+  const currentSpriteKey = `${displayPokemon?.name}-${isShiny}`;
+  const isSpawned = spawnKey === currentSpriteKey;
 
-  // Carga reactiva de movimientos traducidos oficiales al cambiar displayPokemon, activeTab o language
+  // Disparador del escáner láser holográfico al cambiar espécimen o variedad
+  useEffect(() => {
+    let active = true;
+    const startTimer = setTimeout(() => {
+      if (active) setIsScanning(true);
+    }, 0);
+    const endTimer = setTimeout(() => {
+      if (active) setIsScanning(false);
+    }, 850);
+    return () => {
+      active = false;
+      clearTimeout(startTimer);
+      clearTimeout(endTimer);
+    };
+  }, [displayPokemon?.name]);
+
+  // Secuencia de materialización Pokéball al cambiar Pokémon o vista Shiny
+  useEffect(() => {
+    let active = true;
+    const timer = setTimeout(() => {
+      if (active) setSpawnKey(currentSpriteKey);
+    }, 500);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [currentSpriteKey]);
+
+  // Cierre cinemático con reabsorción Pokéball antes de desmontar el modal
+  const handleCloseWithAnimation = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 420);
+  }, [isClosing, onClose]);
+
+  // Carga reactiva de movimientos categorizados y traducidos oficiales
   useEffect(() => {
     let isMounted = true;
 
-    const loadMoves = async () => {
-      if (!displayPokemon?.moves || (activeTab !== 'moves' && activeTab !== 'movimientos')) return;
+    if ((activeTab === 'moves' || activeTab === 'movimientos') && displayPokemon?.moves) {
+      const loadTimer = setTimeout(() => {
+        if (isMounted) setIsLoadingMoves(true);
+      }, 0);
 
-      setIsLoadingMoves(true);
-      // Tomamos los movimientos relevantes (primeros 45 para evitar cuello de botella de red)
-      const movesToProcess = displayPokemon.moves.slice(0, 45);
-      const resolved = await translateMovesBatch(movesToProcess, language);
+      categorizeAndTranslateMoves(displayPokemon.moves, language)
+        .then((res) => {
+          if (isMounted) {
+            setCategorizedMoves(res);
+            setIsLoadingMoves(false);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            setIsLoadingMoves(false);
+          }
+        });
 
-      if (isMounted) {
-        setTranslatedMoves(resolved);
-        setIsLoadingMoves(false);
-      }
-    };
-
-    loadMoves();
-
-    return () => {
-      isMounted = false;
-    };
+      return () => {
+        isMounted = false;
+        clearTimeout(loadTimer);
+      };
+    }
   }, [displayPokemon?.name, displayPokemon?.moves, activeTab, language]);
 
   const getFormLabel = (rawName, baseName) => {
@@ -163,7 +210,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && onClose) {
-        onClose();
+        handleCloseWithAnimation();
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
         const cur = currentPokemonRef.current;
@@ -180,7 +227,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, handleCloseWithAnimation]);
 
   // Carga reactiva de especie, variedades y evolución al cambiar currentPokemon o language
   useEffect(() => {
@@ -353,7 +400,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
 
   return (
     <div
-      onClick={onClose}
+      onClick={handleCloseWithAnimation}
       style={{
         position: 'fixed',
         inset: 0,
@@ -456,6 +503,62 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
           50% {
             transform: scaleX(0.82) scaleY(0.8);
             opacity: 0.12;
+          }
+        }
+
+        /* 1. Escáner Láser Holográfico */
+        @keyframes pokedexScanline {
+          0% {
+            top: 0%;
+            opacity: 0;
+          }
+          15% {
+            opacity: 1;
+          }
+          85% {
+            opacity: 1;
+          }
+          100% {
+            top: 100%;
+            opacity: 0;
+          }
+        }
+
+        /* 2. Haz de Luz y Materialización estilo Pokéball */
+        @keyframes pokeballBeamSpawn {
+          0% {
+            transform: scale(0.15);
+            filter: brightness(3) drop-shadow(0 0 25px #ffffff);
+            opacity: 0;
+          }
+          45% {
+            transform: scale(1.08);
+            filter: brightness(2) drop-shadow(0 0 20px #ef4444);
+            opacity: 0.9;
+          }
+          100% {
+            transform: scale(1);
+            filter: brightness(1) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.18));
+            opacity: 1;
+          }
+        }
+
+        /* 3. Destello de Reabsorción al Cerrar */
+        @keyframes pokeballBeamAbsorb {
+          0% {
+            transform: scale(1);
+            filter: brightness(1);
+            opacity: 1;
+          }
+          50% {
+            transform: scale(1.1);
+            filter: brightness(2.5) drop-shadow(0 0 25px #ef4444);
+            opacity: 0.85;
+          }
+          100% {
+            transform: scale(0.05);
+            filter: brightness(4) drop-shadow(0 0 40px #ffffff);
+            opacity: 0;
           }
         }
         .pokedex-lens-btn {
@@ -633,7 +736,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
           {/* Botón de cierre en tono vino/rojo oscuro */}
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCloseWithAnimation}
             aria-label="Cerrar Pokédex"
             style={{
               width: '28px',
@@ -867,10 +970,29 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   alignItems: 'center',
                   margin: '4px 0',
                   position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: '16px',
                   minHeight: '180px',
                   zIndex: 2,
                 }}
               >
+                {/* Escáner Láser Holográfico de Diagnóstico */}
+                {isScanning && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '5%',
+                      width: '90%',
+                      height: '3px',
+                      background: `linear-gradient(90deg, transparent, #ffffff, ${TYPE_BORDER_COLORS[primaryType] || '#38bdf8'}, #ffffff, transparent)`,
+                      boxShadow: `0 0 12px 3px ${TYPE_BORDER_COLORS[primaryType] || '#38bdf8'}`,
+                      zIndex: 5,
+                      pointerEvents: 'none',
+                      animation: 'pokedexScanline 0.8s ease-in-out forwards',
+                    }}
+                  />
+                )}
+
                 <PokeballWatermark
                   size="210px"
                   opacity={0.30}
@@ -880,15 +1002,24 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   key={`${displayPokemon.id}-${displayPokemon.name}-${isShiny}`}
                   src={getHighResArtwork(displayPokemon, isShiny)}
                   alt={displayPokemon.name}
+                  onAnimationEnd={(e) => {
+                    if (e.animationName === 'pokeballBeamSpawn') {
+                      setSpawnKey(currentSpriteKey);
+                    }
+                  }}
                   style={{
                     height: 'clamp(155px, 16vw, 190px)',
                     maxHeight: '195px',
                     width: 'auto',
                     objectFit: 'contain',
                     filter: 'drop-shadow(0 8px 16px rgba(0, 0, 0, 0.18))',
-                    animation: isFloating
-                      ? 'pokemonLivelyFloat 2.8s ease-in-out infinite'
-                      : 'pokemonLivelyBreath 2.6s ease-in-out infinite',
+                    animation: isClosing
+                      ? 'pokeballBeamAbsorb 0.42s ease-in forwards'
+                      : !isSpawned
+                        ? 'pokeballBeamSpawn 0.5s cubic-bezier(0.18, 0.9, 0.32, 1.2) forwards'
+                        : isFloating
+                          ? 'pokemonLivelyFloat 2.8s ease-in-out infinite'
+                          : 'pokemonLivelyBreath 2.6s ease-in-out infinite',
                     transformOrigin: 'bottom center',
                     position: 'relative',
                     zIndex: 2,
@@ -903,7 +1034,9 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                     borderRadius: '50%',
                     backgroundColor: '#0f172a',
                     margin: '-6px auto 0 auto',
-                    animation: 'shadowLivelyPulse 2.8s ease-in-out infinite',
+                    animation: isClosing ? 'none' : 'shadowLivelyPulse 2.8s ease-in-out infinite',
+                    opacity: isClosing ? 0 : undefined,
+                    transition: 'opacity 0.2s ease',
                     zIndex: 1,
                   }}
                 />
@@ -1647,6 +1780,37 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                       paddingRight: '6px',
                     }}
                   >
+                    {/* Barra de Selección y Filtro de Categorías */}
+                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginBottom: '8px' }}>
+                      {[
+                        { id: 'levelUp', label: language === 'es' ? 'Nivel' : 'Level', count: categorizedMoves.levelUp?.length || 0 },
+                        { id: 'machine', label: language === 'es' ? 'MT / MO' : 'TM / HM', count: categorizedMoves.machine?.length || 0 },
+                        { id: 'egg', label: language === 'es' ? 'Huevo' : 'Egg', count: categorizedMoves.egg?.length || 0 }
+                      ].map((cat) => {
+                        const isActive = moveCategory === cat.id;
+                        return (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setMoveCategory(cat.id)}
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              borderRadius: '10px',
+                              border: isActive ? `2px solid ${TYPE_BORDER_COLORS[primaryType] || '#ef4444'}` : '1px solid #cbd5e1',
+                              backgroundColor: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.6)',
+                              color: isActive ? '#0f172a' : '#64748b',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            {cat.label} ({cat.count})
+                          </button>
+                        );
+                      })}
+                    </div>
+
                     {isLoadingMoves ? (
                       <div
                         style={{
@@ -1670,10 +1834,10 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                           }}
                         />
                         <span>
-                          {language === 'es' ? 'Cargando movimientos traducidos...' : 'Loading moves...'}
+                          {language === 'es' ? 'Cargando movimientos clasificados...' : 'Loading moves...'}
                         </span>
                       </div>
-                    ) : translatedMoves && translatedMoves.length > 0 ? (
+                    ) : (categorizedMoves[moveCategory] && categorizedMoves[moveCategory].length > 0) ? (
                       <div
                         style={{
                           display: 'grid',
@@ -1684,7 +1848,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                           padding: '6px',
                         }}
                       >
-                        {translatedMoves.map((item, idx) => (
+                        {categorizedMoves[moveCategory].map((item, idx) => (
                           <div
                             key={`${item.rawName}-${idx}`}
                             style={{
@@ -1708,18 +1872,65 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                             >
                               {item.displayName}
                             </span>
-                            {item.levelLearnedAt > 0 && (
-                              <span style={{ fontSize: '9.5px', color: '#64748b', fontWeight: '500' }}>
-                                {language === 'es' ? `Nv. ${item.levelLearnedAt}` : `Lv. ${item.levelLearnedAt}`}
+                            {moveCategory === 'levelUp' && (
+                              <span
+                                style={{
+                                  fontSize: '9.5px',
+                                  color: '#0284c7',
+                                  fontWeight: '700',
+                                  marginTop: '2px',
+                                }}
+                              >
+                                {language === 'es' ? `Nv. ${item.level}` : `Lv. ${item.level}`}
+                              </span>
+                            )}
+                            {moveCategory === 'machine' && (
+                              <span
+                                style={{
+                                  fontSize: '9.5px',
+                                  color: '#7c3aed',
+                                  fontWeight: '700',
+                                  marginTop: '2px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '2px',
+                                }}
+                              >
+                                💿 {language === 'es' ? 'MT / MO' : 'TM / HM'}
+                              </span>
+                            )}
+                            {moveCategory === 'egg' && (
+                              <span
+                                style={{
+                                  fontSize: '9.5px',
+                                  color: '#d97706',
+                                  fontWeight: '700',
+                                  marginTop: '2px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '2px',
+                                }}
+                              >
+                                🥚 {language === 'es' ? 'Huevo' : 'Egg'}
                               </span>
                             )}
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', padding: '12px' }}>
-                        {language === 'es' ? 'No se encontraron movimientos disponibles.' : 'No moves available.'}
-                      </span>
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          padding: '28px 12px',
+                          color: '#94a3b8',
+                          fontSize: '12px',
+                          fontStyle: 'italic',
+                        }}
+                      >
+                        {language === 'es'
+                          ? 'No aprende movimientos por este método.'
+                          : 'No moves learned by this method.'}
+                      </div>
                     )}
                   </div>
                 )}
