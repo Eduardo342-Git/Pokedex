@@ -19,3 +19,25 @@ export const TYPE_COLORS = {
   dark: { bg: '#334155', text: '#ffffff' }
 };
 
+export const TYPE_PASTEL_COLORS = {
+  normal: '#f1f5f9',
+  fire: '#ffe4e6',
+  water: '#e0f2fe',
+  grass: '#dcfce7',
+  electric: '#fef9c3',
+  ice: '#e0f7fa',
+  fighting: '#fee2e2',
+  poison: '#f3e8ff',
+  ground: '#fef3c7',
+  flying: '#f0fdf4',
+  psychic: '#fce7f3',
+  bug: '#ecfccb',
+  rock: '#f5f5f4',
+  ghost: '#ede9fe',
+  dragon: '#e0e7ff',
+  steel: '#f1f5f9',
+  dark: '#e2e8f0',
+  fairy: '#fdf2f8'
+};
+
+

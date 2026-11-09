@@ -252,3 +252,49 @@ export const getAbilityName = async (abilityUrlOrName, lang = 'es') => {
       : 'Habilidad';
   }
 };
+
+/**
+ * Categoriza la lista de movimientos de un Pokémon a partir de version_group_details.
+ * @param {Array} movesList - Array pokemon.moves devuelto por la PokéAPI
+ * @returns {{ levelUp: Array<{ name: string, level: number }>, machine: Array<{ name: string }>, egg: Array<{ name: string }> }}
+ */
+export const getPokemonMovesCategorized = (movesList) => {
+  const result = {
+    levelUp: [],
+    machine: [],
+    egg: [],
+  };
+
+  if (!Array.isArray(movesList)) return result;
+
+  movesList.forEach((item) => {
+    if (!item || !item.move || !Array.isArray(item.version_group_details) || item.version_group_details.length === 0) {
+      return;
+    }
+
+    // Última versión disponible
+    const latestDetail = item.version_group_details[item.version_group_details.length - 1];
+    const method = latestDetail?.move_learn_method?.name;
+    const moveName = item.move.name;
+
+    if (method === 'level-up') {
+      result.levelUp.push({
+        name: moveName,
+        level: latestDetail.level_learned_at ?? 0,
+      });
+    } else if (method === 'machine') {
+      result.machine.push({
+        name: moveName,
+      });
+    } else if (method === 'egg') {
+      result.egg.push({
+        name: moveName,
+      });
+    }
+  });
+
+  // Ordenar movimientos por nivel de menor a mayor
+  result.levelUp.sort((a, b) => a.level - b.level);
+
+  return result;
+};
