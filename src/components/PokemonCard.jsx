@@ -43,23 +43,15 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
   if (loading || !activePokemon) {
     return (
       <div
-        className="pokemon-card"
+        className="pro-card"
         style={{
-          width: '100%',
-          aspectRatio: '4 / 5',
           backgroundColor: '#f8fafc',
           border: '2px solid #e2e8f0',
-          borderRadius: 'clamp(12px, 1.5vw, 20px)',
-          padding: '5% 4%',
-          boxSizing: 'border-box',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
           justifyContent: 'center',
           cursor: 'default',
         }}
       >
-        <p style={{ color: '#64748b', fontSize: 'clamp(10px, 1vw, 14px)', margin: 0, fontWeight: 500 }}>
+        <p style={{ color: '#64748b', fontSize: '12px', margin: 0, fontWeight: 500 }}>
           {language === 'es' ? 'Sintonizando...' : 'Tuning in...'}
         </p>
       </div>
@@ -80,131 +72,45 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
 
   return (
     <div
+      className="pro-card"
       onClick={handleClick}
-      className="pokemon-card"
       style={{
-        width: '100%',
-        aspectRatio: '4 / 5', // Proporción estricta tipo carta
         backgroundColor: pastelBg,
         border: `2px solid ${borderColor}`,
-        borderRadius: 'clamp(12px, 1.5vw, 20px)',
-        padding: '5% 4%',
-        boxSizing: 'border-box',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'space-between',
         cursor: 'pointer',
-        position: 'relative',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-6px)';
-        e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.12)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = 'none';
       }}
     >
       {/* Micro-patrones vectoriales decorativos en las esquinas según el tipo elemental */}
       <TypeDecorations type={primaryType} color={TYPE_BORDER_COLORS?.[primaryType]} />
 
-      {/* ID del Pokémon */}
-      <span
-        style={{
-          fontSize: 'clamp(10px, 1vw, 14px)',
-          fontWeight: '800',
-          color: '#64748b',
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          zIndex: 2,
-        }}
-      >
+      {/* ID */}
+      <span className="pro-card-id">
         #{String(activePokemon.id).padStart(3, '0')}
       </span>
 
-      {/* Contenedor del Sprite que ocupa el espacio restante fluidamente */}
-      <div
-        style={{
-          flex: '1 1 auto',
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          margin: '2% 0',
-          zIndex: 2,
-        }}
-      >
-        {/* Halo Vectorial Relativo */}
-        <div
-          style={{
-            position: 'absolute',
-            width: '70%',
-            aspectRatio: '1 / 1',
-            borderRadius: '50%',
-            border: '3px solid rgba(255, 255, 255, 0.6)',
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            zIndex: 1,
-            pointerEvents: 'none',
-          }}
-        />
-        {/* Imagen del Pokémon limitando a los bordes de la tarjeta */}
+      {/* Sprite y Halo */}
+      <div className="pro-card-sprite-wrapper">
+        <div className="pro-card-halo" />
         {artwork && (
           <img
             src={artwork}
             alt={activePokemon.name}
-            style={{
-              width: '82%',
-              height: '82%',
-              objectFit: 'contain',
-              filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.15))',
-              zIndex: 2,
-              transition: 'transform 0.2s ease',
-            }}
+            className="pro-card-img"
           />
         )}
       </div>
 
-      {/* Base: Nombre y Tipos */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '4px',
-          width: '100%',
-          zIndex: 2,
-        }}
-      >
-        <span
-          translate="no"
-          className="notranslate"
-          style={{
-            fontSize: 'clamp(11px, 1.2vw, 16px)',
-            fontWeight: '900',
-            textTransform: 'uppercase',
-            color: '#0f172a',
-            textAlign: 'center',
-            letterSpacing: '0.5px',
-          }}
-        >
+      {/* Nombre y Tipos */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', zIndex: 2 }}>
+        <span translate="no" className="notranslate pro-card-name">
           {activePokemon.name}
         </span>
-
-        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div className="pro-card-types">
           {activePokemon.types?.map((t) => (
             <span
               key={t.type.name}
-              style={{
-                fontSize: 'clamp(8.5px, 0.8vw, 11px)',
-                fontWeight: '800',
-                textTransform: 'uppercase',
-                padding: '3px 8px',
-                borderRadius: '6px',
-                color: '#ffffff',
-                backgroundColor: TYPE_BORDER_COLORS?.[t.type.name] || '#64748b',
-              }}
+              className="pro-card-type"
+              style={{ backgroundColor: TYPE_BORDER_COLORS?.[t.type.name] || '#64748b' }}
             >
               {TYPE_NAMES?.[language]?.[t.type.name] || t.type.name}
             </span>

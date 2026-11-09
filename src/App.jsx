@@ -494,7 +494,7 @@ function App() {
         {/* Contenedor de la Cuadrícula */}
         <div
           ref={gridContainerRef}
-          className="pokemon-grid-container pro-pokemon-grid"
+          className="pro-grid"
           style={{
             flex: 1,
             overflowY: 'auto',
