@@ -4,12 +4,14 @@ const PokeballWatermark = ({
   color = '#ffffff',
   rotate = 0,
   scale = 1,
+  className = '',
   style = {},
 }) => {
   return (
     <svg
       viewBox="0 0 100 100"
       aria-hidden="true"
+      className={`pokeball-watermark ${className}`.trim()}
       style={{
         position: 'absolute',
         top: '50%',
