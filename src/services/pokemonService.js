@@ -24,13 +24,183 @@ export const getPokemonDetails = async (nameOrId) => {
   }
 };
 
+const SPACE_POKEMONS = [
+  'deoxys',
+  'rayquaza',
+  'jirachi',
+  'solgaleo',
+  'lunala',
+  'necrozma',
+  'eternatus',
+  'palkia',
+  'dialga',
+  'giratina',
+  'arceus',
+  'cosmog',
+  'cosmoem',
+  'minior',
+  'elgyem',
+  'beheeyem',
+];
+
+const resolveHabitat = (rawHabitat, isMythical, isLegendary, primaryType, pokemonName) => {
+  // 1. Si la PokéAPI provee hábitat válido
+  if (rawHabitat && rawHabitat !== 'unknown') {
+    return rawHabitat;
+  }
+
+  const name = String(pokemonName || '').toLowerCase();
+
+  // 2. Criaturas espaciales / interdimensionales
+  if (SPACE_POKEMONS.includes(name)) {
+    return 'space';
+  }
+
+  // 3. Míticos
+  if (isMythical) {
+    return 'mythical';
+  }
+
+  // 4. Legendarios
+  if (isLegendary) {
+    return 'legendary';
+  }
+
+  // 5. Inferencia por tipo elemental primario
+  switch (primaryType?.toLowerCase()) {
+    case 'water':
+      return 'sea';
+    case 'grass':
+      return 'grassland';
+    case 'bug':
+      return 'forest';
+    case 'fire':
+    case 'ice':
+    case 'rock':
+      return 'mountain';
+    case 'ground':
+    case 'dark':
+      return 'rough-terrain';
+    case 'electric':
+    case 'steel':
+      return 'urban';
+    case 'poison':
+      return 'swamp';
+    case 'ghost':
+      return 'spooky';
+    case 'psychic':
+    case 'dragon':
+    case 'fairy':
+      return 'rare';
+    case 'flying':
+    case 'normal':
+      return 'grassland';
+    default:
+      return 'rare';
+  }
+};
+
+const parseEvolutionDetails = (details, lang = 'es') => {
+  if (!details || details.length === 0) return null;
+  const d = details[0];
+
+  // 1. Por Nivel
+  if (d.min_level) {
+    return lang === 'es' ? `Nv. ${d.min_level}` : `Lv. ${d.min_level}`;
+  }
+
+  // 2. Por Objeto / Piedra evolutiva
+  if (d.item) {
+    const stoneNames = {
+      'thunder-stone': lang === 'es' ? 'Piedra Trueno' : 'Thunder Stone',
+      'fire-stone': lang === 'es' ? 'Piedra Fuego' : 'Fire Stone',
+      'water-stone': lang === 'es' ? 'Piedra Agua' : 'Water Stone',
+      'leaf-stone': lang === 'es' ? 'Piedra Hoja' : 'Leaf Stone',
+      'moon-stone': lang === 'es' ? 'Piedra Lunar' : 'Moon Stone',
+      'sun-stone': lang === 'es' ? 'Piedra Solar' : 'Sun Stone',
+      'shiny-stone': lang === 'es' ? 'Piedra Día' : 'Shiny Stone',
+      'dusk-stone': lang === 'es' ? 'Piedra Noche' : 'Dusk Stone',
+      'dawn-stone': lang === 'es' ? 'Piedra Alba' : 'Dawn Stone',
+      'ice-stone': lang === 'es' ? 'Piedra Hielo' : 'Ice Stone',
+    };
+    return stoneNames[d.item.name] || d.item.name.replace(/-/g, ' ');
+  }
+
+  // 3. Por Amistad / Felicidad
+  if (d.min_happiness) {
+    return lang === 'es' ? 'Amistad' : 'Friendship';
+  }
+
+  // 4. Por Intercambio
+  if (d.trigger?.name === 'trade') {
+    if (d.held_item) {
+      return lang === 'es'
+        ? `Intercambio c/ ${d.held_item.name.replace(/-/g, ' ')}`
+        : `Trade w/ ${d.held_item.name.replace(/-/g, ' ')}`;
+    }
+    return lang === 'es' ? 'Intercambio' : 'Trade';
+  }
+
+  // 5. Por Movimiento aprendido
+  if (d.known_move) {
+    return lang === 'es'
+      ? `Con ${d.known_move.name.replace(/-/g, ' ')}`
+      : `With ${d.known_move.name.replace(/-/g, ' ')}`;
+  }
+
+  return lang === 'es' ? 'Especial' : 'Special';
+};
+
+const parseEvolutionChain = (chainNode, targetName = '', lang = 'es') => {
+  const chain = [];
+  let current = chainNode;
+
+  while (current && current.species) {
+    const speciesName = current.species.name;
+    const urlParts = current.species.url ? current.species.url.split('/').filter(Boolean) : [];
+    const id = parseInt(urlParts[urlParts.length - 1], 10);
+
+    // Requisito para evolucionar a ESTE Pokémon
+    const requirement = parseEvolutionDetails(current.evolution_details, lang);
+
+    chain.push({
+      name: speciesName,
+      id,
+      sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`,
+      requirement,
+      trigger: requirement,
+    });
+
+    if (current.evolves_to && current.evolves_to.length > 0) {
+      if (current.evolves_to.length === 1) {
+        current = current.evolves_to[0];
+      } else {
+        const targetBranch = current.evolves_to.find((branch) => {
+          let b = branch;
+          while (b) {
+            if (b.species?.name?.toLowerCase() === String(targetName).toLowerCase()) return true;
+            b = b.evolves_to?.[0];
+          }
+          return false;
+        });
+        current = targetBranch || current.evolves_to[0];
+      }
+    } else {
+      current = null;
+    }
+  }
+
+  return chain;
+};
+
 /**
  * Obtiene la información de la especie (lore/descripción de la Pokédex y categoría/género) en el idioma seleccionado.
  * @param {string|number} pokemonIdOrName - ID o nombre del Pokémon
  * @param {string} lang - Código de idioma ('es' o 'en')
- * @returns {Promise<{ description: string, genus: string }>}
+ * @param {string|null} primaryType - Tipo elemental primario opcional para inferencia de hábitat
+ * @returns {Promise<{ description: string, genus: string, varieties: Array, habitat: string, evolutionChain: Array }>}
  */
-export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es') => {
+export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primaryType = null) => {
   try {
     const cleanIdentifier = String(pokemonIdOrName).trim().toLowerCase();
     const response = await axios.get(`${BASE_URL}/pokemon-species/${cleanIdentifier}`);
@@ -68,8 +238,17 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es') => {
         }))
       : [];
 
-    // 4. Extraer hábitat
-    const habitat = data.habitat ? data.habitat.name : 'unknown';
+    // 4. Extraer y resolver hábitat
+    const rawHabitat = data.habitat ? data.habitat.name : null;
+    const isMythical = Boolean(data.is_mythical);
+    const isLegendary = Boolean(data.is_legendary);
+    const habitat = resolveHabitat(
+      rawHabitat,
+      isMythical,
+      isLegendary,
+      primaryType,
+      data.name || cleanIdentifier
+    );
 
     // 5. Extraer y procesar cadena evolutiva
     let evolutionChain = [];
@@ -101,64 +280,10 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es') => {
           : 'Pokédex information currently unavailable.',
       genus: lang === 'es' ? 'Pokémon Desconocido' : 'Unknown Pokémon',
       varieties: [],
-      habitat: 'unknown',
+      habitat: resolveHabitat(null, false, false, primaryType, pokemonIdOrName),
       evolutionChain: [],
     };
   }
-};
-
-const parseEvolutionChain = (chainNode, targetName = '', lang = 'es') => {
-  const evolutions = [];
-  let current = chainNode;
-
-  while (current && current.species) {
-    const speciesName = current.species.name;
-    const urlParts = current.species.url ? current.species.url.split('/').filter(Boolean) : [];
-    const id = urlParts[urlParts.length - 1];
-
-    let nextEvo = null;
-    if (Array.isArray(current.evolves_to) && current.evolves_to.length > 0) {
-      if (current.evolves_to.length === 1) {
-        nextEvo = current.evolves_to[0];
-      } else {
-        const targetBranch = current.evolves_to.find((branch) => {
-          let b = branch;
-          while (b) {
-            if (b.species?.name?.toLowerCase() === targetName.toLowerCase()) return true;
-            b = b.evolves_to?.[0];
-          }
-          return false;
-        });
-        nextEvo = targetBranch || current.evolves_to[0];
-      }
-    }
-
-    let triggerDetails = null;
-    if (nextEvo && Array.isArray(nextEvo.evolution_details) && nextEvo.evolution_details.length > 0) {
-      const d = nextEvo.evolution_details[0];
-      if (d.min_level) {
-        triggerDetails = `Nv. ${d.min_level}`;
-      } else if (d.item) {
-        triggerDetails = d.item.name.replace(/-/g, ' ');
-      } else if (d.trigger?.name === 'trade') {
-        triggerDetails = lang === 'es' ? 'Intercambio' : 'Trade';
-      } else if (d.min_happiness) {
-        triggerDetails = lang === 'es' ? 'Amistad' : 'Friendship';
-      } else {
-        triggerDetails = lang === 'es' ? 'Especial' : 'Special';
-      }
-    }
-
-    evolutions.push({
-      name: speciesName,
-      id: parseInt(id, 10),
-      sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`,
-      trigger: triggerDetails,
-    });
-
-    current = nextEvo;
-  }
-  return evolutions;
 };
 
 const formsCache = {};

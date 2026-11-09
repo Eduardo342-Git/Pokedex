@@ -22,16 +22,21 @@ const STAT_LABELS = {
   speed: 'SPD',
 };
 
-const HABITAT_LABELS = {
-  cave: { es: '🪨 Cueva', en: '🪨 Cave' },
+const HABITAT_CONFIG = {
+  space: { es: '🌌 Espacio Exterior', en: '🌌 Outer Space' },
+  mythical: { es: '✨ Mítico Desconocido', en: '✨ Mythical Realm' },
+  legendary: { es: '👑 Santuario Ancestral', en: '👑 Ancient Sanctuary' },
   forest: { es: '🌲 Bosque', en: '🌲 Forest' },
   grassland: { es: '🌿 Pradera', en: '🌿 Grassland' },
   mountain: { es: '⛰️ Montaña', en: '⛰️ Mountain' },
-  rare: { es: '✨ Raro', en: '✨ Rare' },
-  'rough-terrain': { es: '🏜️ Terreno Escarpado', en: '🏜️ Rough Terrain' },
   sea: { es: '🌊 Mar', en: '🌊 Sea' },
+  cave: { es: '🪨 Cueva', en: '🪨 Cave' },
   urban: { es: '🏙️ Urbano', en: '🏙️ Urban' },
-  'waters-edge': { es: '🏖️ Orilla', en: "🏖️ Water's Edge" },
+  'waters-edge': { es: '🏖️ Orilla del Agua', en: "🏖️ Water's Edge" },
+  'rough-terrain': { es: '🏜️ Terreno Escarpado', en: '🏜️ Rough Terrain' },
+  swamp: { es: '🍄 Pantano', en: '🍄 Swamp' },
+  spooky: { es: '🕯️ Lugares Sombríos', en: '🕯️ Haunted Areas' },
+  rare: { es: '🔮 Hábitat Raro', en: '🔮 Rare Habitat' },
   unknown: { es: '❓ Desconocido', en: '❓ Unknown' },
 };
 
@@ -118,7 +123,8 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
             setActiveVariety(null);
           }
         }
-        const species = await getPokemonSpeciesData(currentPokemon.name, language);
+        const currentPrimaryType = currentPokemon.types?.[0]?.type?.name || 'normal';
+        const species = await getPokemonSpeciesData(currentPokemon.name, language, currentPrimaryType);
 
         if (isMounted) {
           setSpeciesInfo(
@@ -813,37 +819,29 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
               </div>
 
               {/* Cápsula de Hábitat Natural */}
-              {speciesInfo?.habitat && speciesInfo.habitat !== 'unknown' && (
+              {speciesInfo?.habitat && (
                 <div
                   style={{
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: '6px',
+                    gap: '6px',
+                    padding: '4px 12px',
+                    borderRadius: '12px',
+                    fontSize: '11.5px',
+                    fontWeight: '600',
+                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                    border: `1px solid ${TYPE_BORDER_COLORS[primaryType] || '#cbd5e1'}40`,
+                    color: '#334155',
+                    margin: '6px auto',
+                    alignSelf: 'center',
                     position: 'relative',
                     zIndex: 1,
                   }}
                 >
-                  <span
-                    style={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.82)',
-                      border: '1px solid rgba(0, 0, 0, 0.08)',
-                      borderRadius: '9999px',
-                      padding: '3px 12px',
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      color: '#475569',
-                      letterSpacing: '0.02em',
-                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    <span style={{ color: '#64748b', fontWeight: 600 }}>
-                      {language === 'es' ? 'Hábitat:' : 'Habitat:'}
-                    </span>{' '}
-                    {HABITAT_LABELS[speciesInfo.habitat]?.[language] || speciesInfo.habitat}
+                  <span>{language === 'es' ? 'Hábitat:' : 'Habitat:'}</span>
+                  <span>
+                    {HABITAT_CONFIG[speciesInfo.habitat]?.[language] ||
+                      HABITAT_CONFIG.rare[language]}
                   </span>
                 </div>
               )}
@@ -1586,7 +1584,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                               padding: '0 2px',
                             }}
                           >
-                            {evo.trigger && (
+                            {(evo.requirement || evo.trigger) && (
                               <span
                                 style={{
                                   fontSize: '9px',
@@ -1598,7 +1596,7 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                                   marginBottom: '2px',
                                 }}
                               >
-                                {evo.trigger}
+                                {evo.requirement || evo.trigger}
                               </span>
                             )}
                             <span style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1' }}>

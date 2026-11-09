@@ -94,3 +94,4 @@ const StatRadarChart = ({ stats = [], color = '#22c55e', size = 200 }) => {
 };
 
 export default StatRadarChart;
+
