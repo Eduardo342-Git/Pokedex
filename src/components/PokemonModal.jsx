@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   getPokemonDetails,
   getPokemonTypeRelations,
   getPokemonEvolutions,
   getPokemonSpeciesData,
   getAbilityName,
+  getPokemonMovesCategorized,
 } from '../services/pokemonService';
-import { TYPE_COLORS } from '../utils/pokemonTypes';
+import { TYPE_COLORS, TYPE_PASTEL_COLORS } from '../utils/pokemonTypes';
 import { UI_TRANSLATIONS, TYPE_NAMES } from '../utils/translations';
 
 const STAT_LABELS = {
@@ -38,7 +39,16 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
   const [isShiny, setIsShiny] = useState(false);
   const [loadingCombatData, setLoadingCombatData] = useState(false);
   const [translatedAbilities, setTranslatedAbilities] = useState([]);
+  const [activeTab, setActiveTab] = useState('info'); // 'info' | 'moves'
   const prevPokemonNameRef = useRef(currentPokemon?.name);
+
+  // Procesar movimientos categorizados de forma memoizada al cambiar currentPokemon
+  const categorizedMoves = useMemo(() => {
+    if (currentPokemon && currentPokemon.moves) {
+      return getPokemonMovesCategorized(currentPokemon.moves);
+    }
+    return { levelUp: [], machine: [], egg: [] };
+  }, [currentPokemon]);
 
   // Sincronizar si cambia la prop pokemon externamente sin efecto en cascada
   if (pokemon !== prevPokemonProp) {
@@ -175,6 +185,9 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
 
   const totalStats =
     currentPokemon.stats?.reduce((acc, curr) => acc + curr.base_stat, 0) || 0;
+
+  const primaryType = currentPokemon.types?.[0]?.type?.name || 'normal';
+  const pastelBg = TYPE_PASTEL_COLORS[primaryType] || '#f8fafc';
 
   return (
     <div
@@ -349,11 +362,14 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
               />
             </div>
 
-            {/* Pantalla interior LCD blanca/azulada con scroll suave independiente */}
+            {/* Pantalla interior LCD con fondo pastel dinámico y scroll suave independiente */}
             <div
               style={{
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
+                backgroundColor: pastelBg,
+                position: 'relative',
+                overflow: 'hidden',
+                transition: 'background-color 0.3s ease',
+                border: '1px solid rgba(0, 0, 0, 0.08)',
                 borderRadius: '12px',
                 padding: '12px',
                 boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.05)',
@@ -365,6 +381,20 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 scrollBehavior: 'smooth',
               }}
             >
+              {/* Marca de agua Pokéball decorativa */}
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '-30px',
+                  bottom: '-30px',
+                  width: '200px',
+                  height: '200px',
+                  opacity: 0.08,
+                  pointerEvents: 'none',
+                  backgroundImage: `radial-gradient(circle, #000 20%, transparent 21%), radial-gradient(circle, transparent 35%, #000 36%, #000 44%, transparent 45%)`,
+                  backgroundSize: '100% 100%',
+                }}
+              />
               {/* Encabezado: #ID y Nombre */}
               <div style={{ textAlign: 'center', marginBottom: '8px' }}>
                 <span
@@ -704,11 +734,14 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
               />
             </div>
 
-            {/* Pantalla interior LCD blanca/azulada con scroll suave independiente */}
+            {/* Pantalla interior LCD derecha con fondo pastel dinámico y scroll suave independiente */}
             <div
               style={{
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
+                backgroundColor: pastelBg,
+                position: 'relative',
+                overflow: 'hidden',
+                transition: 'background-color 0.3s ease',
+                border: '1px solid rgba(0, 0, 0, 0.08)',
                 borderRadius: '12px',
                 padding: '12px',
                 boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.05)',
@@ -721,335 +754,584 @@ function PokemonModal({ pokemon, onClose, language = 'es' }) {
                 scrollBehavior: 'smooth',
               }}
             >
-              <div>
-                {/* Sección: HABILIDADES (ubicada justo arriba de Eficacia en Combate) */}
-                <div
+              {/* Marca de agua Pokéball decorativa */}
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '-30px',
+                  bottom: '-30px',
+                  width: '200px',
+                  height: '200px',
+                  opacity: 0.08,
+                  pointerEvents: 'none',
+                  backgroundImage: `radial-gradient(circle, #000 20%, transparent 21%), radial-gradient(circle, transparent 35%, #000 36%, #000 44%, transparent 45%)`,
+                  backgroundSize: '100% 100%',
+                }}
+              />
+
+              {/* Pestañas de Navegación: Información / Movimientos */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '8px',
+                  marginBottom: '12px',
+                  borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+                  paddingBottom: '8px',
+                  position: 'relative',
+                  zIndex: 2,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('info')}
                   style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '10px',
-                    padding: '10px 12px',
-                    border: '1px solid #e2e8f0',
-                    marginBottom: '10px',
+                    flex: 1,
+                    padding: '8px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    backgroundColor: activeTab === 'info' ? '#e11d48' : 'rgba(255, 255, 255, 0.75)',
+                    color: activeTab === 'info' ? '#ffffff' : '#475569',
+                    transition: 'all 0.2s ease',
+                    boxShadow: activeTab === 'info' ? '0 2px 6px rgba(225, 29, 72, 0.3)' : 'none',
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
-                      color: '#64748b',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      marginBottom: '6px',
-                    }}
-                  >
-                    {UI_TRANSLATIONS[language].abilities}
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {translatedAbilities.length > 0
-                      ? translatedAbilities.map((ab, index) => (
-                          <span
-                            key={index}
-                            style={{
-                              backgroundColor: ab.is_hidden ? '#fef3c7' : '#f1f5f9',
-                              color: ab.is_hidden ? '#92400e' : '#334155',
-                              border: `1px solid ${ab.is_hidden ? '#fde68a' : '#cbd5e1'}`,
-                              padding: '4px 10px',
-                              borderRadius: '8px',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                            }}
-                          >
-                            {ab.name} {ab.is_hidden && (language === 'es' ? '(Oculta)' : '(Hidden)')}
-                          </span>
-                        ))
-                      : currentPokemon.abilities?.map(({ ability, is_hidden }, index) => (
-                          <span
-                            key={index}
-                            style={{
-                              backgroundColor: is_hidden ? '#fef3c7' : '#f1f5f9',
-                              color: is_hidden ? '#92400e' : '#334155',
-                              border: `1px solid ${is_hidden ? '#fde68a' : '#cbd5e1'}`,
-                              padding: '4px 10px',
-                              borderRadius: '8px',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                            }}
-                          >
-                            {ability.name.replace(/-/g, ' ')}{' '}
-                            {is_hidden && (language === 'es' ? '(Oculta)' : '(Hidden)')}
-                          </span>
-                        ))}
-                  </div>
-                </div>
-
-                {/* Sección: Eficacia en Combate */}
-                <div
+                  {language === 'es' ? 'Información' : 'Information'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('moves')}
                   style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '10px',
-                    padding: '10px 12px',
-                    border: '1px solid #e2e8f0',
-                    marginBottom: '10px',
+                    flex: 1,
+                    padding: '8px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    backgroundColor: activeTab === 'moves' ? '#e11d48' : 'rgba(255, 255, 255, 0.75)',
+                    color: activeTab === 'moves' ? '#ffffff' : '#475569',
+                    transition: 'all 0.2s ease',
+                    boxShadow: activeTab === 'moves' ? '0 2px 6px rgba(225, 29, 72, 0.3)' : 'none',
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
-                      color: '#64748b',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      marginBottom: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <span>{UI_TRANSLATIONS[language].combatEfficiency}</span>
-                    {loadingCombatData && (
-                      <span style={{ fontSize: '0.65rem', color: '#0284c7', textTransform: 'none' }}>
-                        {UI_TRANSLATIONS[language].syncing}
-                      </span>
-                    )}
-                  </div>
+                  {language === 'es' ? 'Movimientos' : 'Moves'}
+                </button>
+              </div>
 
-                  {/* Fila 1: 💥 Fuerte contra */}
-                  <div style={{ marginBottom: '6px' }}>
-                    <div
-                      style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        color: '#0f172a',
-                        marginBottom: '3px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <span>💥</span>
-                      <span>{UI_TRANSLATIONS[language].strongAgainst}</span>
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '18px' }}>
-                      {typeRelations.strongAgainst && typeRelations.strongAgainst.length > 0 ? (
-                        typeRelations.strongAgainst.map((typeName) => {
-                          const color = TYPE_COLORS[typeName] || { bg: '#64748b', text: '#ffffff' };
-                          const translatedTypeName = TYPE_NAMES[language]?.[typeName] || typeName;
-                          return (
-                            <span
-                              key={typeName}
-                              style={{
-                                backgroundColor: color.bg,
-                                color: color.text,
-                                padding: '2px 7px',
-                                borderRadius: '9999px',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.03em',
-                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
-                              }}
-                            >
-                              {translatedTypeName}
-                            </span>
-                          );
-                        })
-                      ) : (
-                        <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
-                          {UI_TRANSLATIONS[language].none}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Fila 2: 🛡️ Débil ante */}
-                  <div style={{ marginBottom: '6px' }}>
-                    <div
-                      style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        color: '#0f172a',
-                        marginBottom: '3px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <span>🛡️</span>
-                      <span>{UI_TRANSLATIONS[language].weakAgainst}</span>
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '18px' }}>
-                      {typeRelations.weakAgainst && typeRelations.weakAgainst.length > 0 ? (
-                        typeRelations.weakAgainst.map((typeName) => {
-                          const color = TYPE_COLORS[typeName] || { bg: '#64748b', text: '#ffffff' };
-                          const translatedTypeName = TYPE_NAMES[language]?.[typeName] || typeName;
-                          return (
-                            <span
-                              key={typeName}
-                              style={{
-                                backgroundColor: color.bg,
-                                color: color.text,
-                                padding: '2px 7px',
-                                borderRadius: '9999px',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.03em',
-                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
-                              }}
-                            >
-                              {translatedTypeName}
-                            </span>
-                          );
-                        })
-                      ) : (
-                        <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
-                          {UI_TRANSLATIONS[language].none}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Fila 3: ⛔ Ineficaz contra */}
+              {/* Contenido de la pestaña activa */}
+              <div style={{ flex: 1, position: 'relative', zIndex: 1 }}>
+                {activeTab === 'info' && (
                   <div>
+                    {/* Sección: HABILIDADES (ubicada justo arriba de Eficacia en Combate) */}
                     <div
                       style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        color: '#0f172a',
-                        marginBottom: '3px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '10px',
+                        padding: '10px 12px',
+                        border: '1px solid #e2e8f0',
+                        marginBottom: '10px',
                       }}
                     >
-                      <span>⛔</span>
-                      <span>{UI_TRANSLATIONS[language].notEffectiveAgainst}</span>
+                      <div
+                        style={{
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          color: '#64748b',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          marginBottom: '6px',
+                        }}
+                      >
+                        {UI_TRANSLATIONS[language].abilities}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {translatedAbilities.length > 0
+                          ? translatedAbilities.map((ab, index) => (
+                              <span
+                                key={index}
+                                style={{
+                                  backgroundColor: ab.is_hidden ? '#fef3c7' : '#f1f5f9',
+                                  color: ab.is_hidden ? '#92400e' : '#334155',
+                                  border: `1px solid ${ab.is_hidden ? '#fde68a' : '#cbd5e1'}`,
+                                  padding: '4px 10px',
+                                  borderRadius: '8px',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                }}
+                              >
+                                {ab.name} {ab.is_hidden && (language === 'es' ? '(Oculta)' : '(Hidden)')}
+                              </span>
+                            ))
+                          : currentPokemon.abilities?.map(({ ability, is_hidden }, index) => (
+                              <span
+                                key={index}
+                                style={{
+                                  backgroundColor: is_hidden ? '#fef3c7' : '#f1f5f9',
+                                  color: is_hidden ? '#92400e' : '#334155',
+                                  border: `1px solid ${is_hidden ? '#fde68a' : '#cbd5e1'}`,
+                                  padding: '4px 10px',
+                                  borderRadius: '8px',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                }}
+                              >
+                                {ability.name.replace(/-/g, ' ')}{' '}
+                                {is_hidden && (language === 'es' ? '(Oculta)' : '(Hidden)')}
+                              </span>
+                            ))}
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '18px' }}>
-                      {typeRelations.notEffectiveAgainst &&
-                      typeRelations.notEffectiveAgainst.length > 0 ? (
-                        typeRelations.notEffectiveAgainst.map((typeName) => {
-                          const color = TYPE_COLORS[typeName] || { bg: '#64748b', text: '#ffffff' };
-                          const translatedTypeName = TYPE_NAMES[language]?.[typeName] || typeName;
-                          return (
-                            <span
-                              key={typeName}
-                              style={{
-                                backgroundColor: color.bg,
-                                color: color.text,
-                                padding: '2px 7px',
-                                borderRadius: '9999px',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.03em',
-                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
-                              }}
-                            >
-                              {translatedTypeName}
-                            </span>
-                          );
-                        })
-                      ) : (
-                        <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
-                          {UI_TRANSLATIONS[language].none}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
 
-                {/* Sección: Estadísticas Base */}
-                <div
-                  style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '10px',
-                    padding: '10px 12px',
-                    border: '1px solid #e2e8f0',
-                    marginBottom: '10px',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '6px',
-                    }}
-                  >
-                    <span
+                    {/* Sección: Eficacia en Combate */}
+                    <div
                       style={{
-                        fontSize: '0.74rem',
-                        fontWeight: 700,
-                        color: '#64748b',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '10px',
+                        padding: '10px 12px',
+                        border: '1px solid #e2e8f0',
+                        marginBottom: '10px',
                       }}
                     >
-                      {UI_TRANSLATIONS[language].baseStats}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '0.78rem',
-                        fontWeight: 800,
-                        color: '#0f172a',
-                      }}
-                    >
-                      {UI_TRANSLATIONS[language].total}: {totalStats}
-                    </span>
-                  </div>
+                      <div
+                        style={{
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          color: '#64748b',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          marginBottom: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <span>{UI_TRANSLATIONS[language].combatEfficiency}</span>
+                        {loadingCombatData && (
+                          <span style={{ fontSize: '0.65rem', color: '#0284c7', textTransform: 'none' }}>
+                            {UI_TRANSLATIONS[language].syncing}
+                          </span>
+                        )}
+                      </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    {currentPokemon.stats?.map((s) => {
-                      const label = STAT_LABELS[s.stat.name] || s.stat.name.toUpperCase();
-                      const val = s.base_stat;
-                      const percentage = Math.min(100, (val / 255) * 100);
-                      const barColor = getBarColor(val);
-
-                      return (
+                      {/* Fila 1: 💥 Fuerte contra */}
+                      <div style={{ marginBottom: '6px' }}>
                         <div
-                          key={s.stat.name}
                           style={{
-                            display: 'grid',
-                            gridTemplateColumns: '50px 28px 1fr',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            color: '#0f172a',
+                            marginBottom: '3px',
+                            display: 'flex',
                             alignItems: 'center',
-                            gap: '6px',
-                            fontSize: '0.72rem',
+                            gap: '4px',
                           }}
                         >
-                          <span style={{ fontWeight: 600, color: '#64748b' }}>{label}</span>
-                          <span
-                            style={{
-                              fontWeight: 700,
-                              color: '#0f172a',
-                              textAlign: 'right',
-                            }}
-                          >
-                            {val}
-                          </span>
-                          <div
-                            style={{
-                              height: '6px',
-                              backgroundColor: '#e2e8f0',
-                              borderRadius: '9999px',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            <div
-                              style={{
-                                height: '100%',
-                                width: `${percentage}%`,
-                                backgroundColor: barColor,
-                                borderRadius: '9999px',
-                                transition: 'width 0.4s ease',
-                              }}
-                            />
-                          </div>
+                          <span>💥</span>
+                          <span>{UI_TRANSLATIONS[language].strongAgainst}</span>
                         </div>
-                      );
-                    })}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '18px' }}>
+                          {typeRelations.strongAgainst && typeRelations.strongAgainst.length > 0 ? (
+                            typeRelations.strongAgainst.map((typeName) => {
+                              const color = TYPE_COLORS[typeName] || { bg: '#64748b', text: '#ffffff' };
+                              const translatedTypeName = TYPE_NAMES[language]?.[typeName] || typeName;
+                              return (
+                                <span
+                                  key={typeName}
+                                  style={{
+                                    backgroundColor: color.bg,
+                                    color: color.text,
+                                    padding: '2px 7px',
+                                    borderRadius: '9999px',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.03em',
+                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+                                  }}
+                                >
+                                  {translatedTypeName}
+                                </span>
+                              );
+                            })
+                          ) : (
+                            <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                              {UI_TRANSLATIONS[language].none}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Fila 2: 🛡️ Débil ante */}
+                      <div style={{ marginBottom: '6px' }}>
+                        <div
+                          style={{
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            color: '#0f172a',
+                            marginBottom: '3px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <span>🛡️</span>
+                          <span>{UI_TRANSLATIONS[language].weakAgainst}</span>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '18px' }}>
+                          {typeRelations.weakAgainst && typeRelations.weakAgainst.length > 0 ? (
+                            typeRelations.weakAgainst.map((typeName) => {
+                              const color = TYPE_COLORS[typeName] || { bg: '#64748b', text: '#ffffff' };
+                              const translatedTypeName = TYPE_NAMES[language]?.[typeName] || typeName;
+                              return (
+                                <span
+                                  key={typeName}
+                                  style={{
+                                    backgroundColor: color.bg,
+                                    color: color.text,
+                                    padding: '2px 7px',
+                                    borderRadius: '9999px',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.03em',
+                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+                                  }}
+                                >
+                                  {translatedTypeName}
+                                </span>
+                              );
+                            })
+                          ) : (
+                            <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                              {UI_TRANSLATIONS[language].none}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Fila 3: ⛔ Ineficaz contra */}
+                      <div>
+                        <div
+                          style={{
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            color: '#0f172a',
+                            marginBottom: '3px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <span>⛔</span>
+                          <span>{UI_TRANSLATIONS[language].notEffectiveAgainst}</span>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '18px' }}>
+                          {typeRelations.notEffectiveAgainst &&
+                          typeRelations.notEffectiveAgainst.length > 0 ? (
+                            typeRelations.notEffectiveAgainst.map((typeName) => {
+                              const color = TYPE_COLORS[typeName] || { bg: '#64748b', text: '#ffffff' };
+                              const translatedTypeName = TYPE_NAMES[language]?.[typeName] || typeName;
+                              return (
+                                <span
+                                  key={typeName}
+                                  style={{
+                                    backgroundColor: color.bg,
+                                    color: color.text,
+                                    padding: '2px 7px',
+                                    borderRadius: '9999px',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.03em',
+                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+                                  }}
+                                >
+                                  {translatedTypeName}
+                                </span>
+                              );
+                            })
+                          ) : (
+                            <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                              {UI_TRANSLATIONS[language].none}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sección: Estadísticas Base */}
+                    <div
+                      style={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '10px',
+                        padding: '10px 12px',
+                        border: '1px solid #e2e8f0',
+                        marginBottom: '10px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '6px',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: '0.74rem',
+                            fontWeight: 700,
+                            color: '#64748b',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                          }}
+                        >
+                          {UI_TRANSLATIONS[language].baseStats}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '0.78rem',
+                            fontWeight: 800,
+                            color: '#0f172a',
+                          }}
+                        >
+                          {UI_TRANSLATIONS[language].total}: {totalStats}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                        {currentPokemon.stats?.map((s) => {
+                          const label = STAT_LABELS[s.stat.name] || s.stat.name.toUpperCase();
+                          const val = s.base_stat;
+                          const percentage = Math.min(100, (val / 255) * 100);
+                          const barColor = getBarColor(val);
+
+                          return (
+                            <div
+                              key={s.stat.name}
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: '50px 28px 1fr',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontSize: '0.72rem',
+                              }}
+                            >
+                              <span style={{ fontWeight: 600, color: '#64748b' }}>{label}</span>
+                              <span
+                                style={{
+                                  fontWeight: 700,
+                                  color: '#0f172a',
+                                  textAlign: 'right',
+                                }}
+                              >
+                                {val}
+                              </span>
+                              <div
+                                style={{
+                                  height: '6px',
+                                  backgroundColor: '#e2e8f0',
+                                  borderRadius: '9999px',
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    height: '100%',
+                                    width: `${percentage}%`,
+                                    backgroundColor: barColor,
+                                    borderRadius: '9999px',
+                                    transition: 'width 0.4s ease',
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {activeTab === 'moves' && (
+                  <div
+                    style={{
+                      maxHeight: '380px',
+                      overflowY: 'auto',
+                      paddingRight: '6px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                    }}
+                  >
+                    {/* 1. Aprende por Nivel */}
+                    <div
+                      style={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '10px',
+                        padding: '10px 12px',
+                        border: '1px solid #e2e8f0',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          color: '#64748b',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        📈 {language === 'es' ? 'Aprende por Nivel' : 'Learned by Level'}
+                      </div>
+                      {categorizedMoves.levelUp && categorizedMoves.levelUp.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {categorizedMoves.levelUp.map((m, idx) => (
+                            <div
+                              key={`${m.name}-${m.level}-${idx}`}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                backgroundColor: 'rgba(248, 250, 252, 0.9)',
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                border: '1px solid #e2e8f0',
+                                fontSize: '12px',
+                              }}
+                            >
+                              <span
+                                style={{
+                                  backgroundColor: '#0284c7',
+                                  color: '#ffffff',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontWeight: '700',
+                                  fontSize: '10px',
+                                }}
+                              >
+                                {language === 'es' ? `Nv. ${m.level}` : `Lv. ${m.level}`}
+                              </span>
+                              <span
+                                style={{
+                                  fontWeight: '600',
+                                  color: '#1e293b',
+                                  textTransform: 'capitalize',
+                                }}
+                              >
+                                {m.name.replace(/-/g, ' ')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                          {language === 'es' ? 'Ninguno' : 'None'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 2. Aprende por MT / MO */}
+                    <div
+                      style={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '10px',
+                        padding: '10px 12px',
+                        border: '1px solid #e2e8f0',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          color: '#64748b',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        💿 {language === 'es' ? 'Aprende por MT / MO' : 'Learned by TM / HM'}
+                      </div>
+                      {categorizedMoves.machine && categorizedMoves.machine.length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {categorizedMoves.machine.map((m, idx) => (
+                            <span
+                              key={`${m.name}-${idx}`}
+                              style={{
+                                backgroundColor: '#f1f5f9',
+                                color: '#334155',
+                                border: '1px solid #cbd5e1',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                textTransform: 'capitalize',
+                              }}
+                            >
+                              {m.name.replace(/-/g, ' ')}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                          {language === 'es' ? 'Ninguno' : 'None'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 3. Movimientos Huevo */}
+                    <div
+                      style={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '10px',
+                        padding: '10px 12px',
+                        border: '1px solid #e2e8f0',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          color: '#64748b',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        🥚 {language === 'es' ? 'Movimientos Huevo' : 'Egg Moves'}
+                      </div>
+                      {categorizedMoves.egg && categorizedMoves.egg.length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {categorizedMoves.egg.map((m, idx) => (
+                            <span
+                              key={`${m.name}-${idx}`}
+                              style={{
+                                backgroundColor: '#fdf4ff',
+                                color: '#86198f',
+                                border: '1px solid #f0abfc',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                textTransform: 'capitalize',
+                              }}
+                            >
+                              {m.name.replace(/-/g, ' ')}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                          {language === 'es' ? 'Ninguno' : 'None'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Botonera de Evoluciones al pie */}
