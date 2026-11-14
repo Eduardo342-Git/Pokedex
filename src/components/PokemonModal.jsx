@@ -7,6 +7,9 @@ import {
   getPokemonFormData,
   getHighResArtwork,
   categorizeAndTranslateMoves,
+  formatFormLabel,
+  getAllPokemonForms,
+  resolvePokemonFormData,
 } from '../services/pokemonService';
 import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
 import { UI_TRANSLATIONS, TYPE_NAMES } from '../utils/translations';
@@ -172,20 +175,6 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
     }
   }, [displayPokemon?.name, displayPokemon?.moves, activeTab, language]);
 
-  const getFormLabel = (rawName, baseName) => {
-    if (rawName === baseName) return language === 'es' ? 'Base' : 'Standard';
-    const clean = rawName.replace(`${baseName}-`, '');
-    if (clean.includes('mega-x')) return 'Mega X';
-    if (clean.includes('mega-y')) return 'Mega Y';
-    if (clean.includes('mega')) return 'Mega';
-    if (clean.includes('gmax')) return 'Gigamax';
-    if (clean.includes('alola')) return 'Alola';
-    if (clean.includes('galar')) return 'Galar';
-    if (clean.includes('hisui')) return 'Hisui';
-    if (clean.includes('paldea')) return 'Paldea';
-    return clean.toUpperCase();
-  };
-
   // Sincronizar si cambia la prop pokemon externamente sin efecto en cascada
   if (pokemon !== prevPokemonProp) {
     setPrevPokemonProp(pokemon);
@@ -262,6 +251,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
         if (isMounted) {
           setSpeciesInfo(
             species || {
+              name: currentPokemon.name,
               description: '',
               genus: '',
               varieties: [],
@@ -271,7 +261,8 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
               isMythical: false,
             }
           );
-          setAvailableVarieties(species?.varieties || []);
+          const allForms = await getAllPokemonForms(currentPokemon, species);
+          setAvailableVarieties(allForms);
         }
       } catch (error) {
         console.error('Error cargando datos de Pokémon:', error);
@@ -982,14 +973,18 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                 </h2>
               </div>
 
-              {/* Selector de Formas Alternativas (Mega, Gigamax, Formas Regionales) */}
+              {/* Selector de Formas Alternativas (Mega, Gigamax, Formas Regionales, Cosméticas) */}
               {availableVarieties.length > 1 && (
                 <div
+                  className="thin-dark-scroll"
                   style={{
                     display: 'flex',
-                    gap: '6px',
-                    justifyContent: 'center',
                     flexWrap: 'wrap',
+                    justifyContent: 'center',
+                    gap: '5px',
+                    maxHeight: '64px',
+                    overflowY: 'auto',
+                    padding: '2px 4px',
                     margin: '6px 0',
                     position: 'relative',
                     zIndex: 2,
@@ -997,6 +992,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                 >
                   {availableVarieties.map((v) => {
                     const isCurrent = (activeVariety?.name || currentPokemon.name) === v.name;
+                    const baseSpeciesName = speciesInfo?.name || currentPokemon.name;
                     return (
                       <button
                         key={v.name}
@@ -1004,8 +1000,12 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                         onClick={async () => {
                           if (isCurrent) return;
                           try {
-                            const data = await getPokemonFormData(v.url);
-                            setActiveVariety(data);
+                            if (v.name === currentPokemon.name) {
+                              setActiveVariety(null);
+                            } else {
+                              const data = await resolvePokemonFormData(v, currentPokemon);
+                              setActiveVariety(data);
+                            }
                           } catch (err) {
                             console.error('Error al cambiar de forma:', err);
                           }
@@ -1025,7 +1025,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                           transition: 'all 0.2s',
                         }}
                       >
-                        {getFormLabel(v.name, currentPokemon.name)}
+                        {formatFormLabel(v.name, baseSpeciesName, language)}
                       </button>
                     );
                   })}
@@ -1116,6 +1116,14 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   key={`${displayPokemon.id}-${displayPokemon.name}-${isShiny}`}
                   src={getHighResArtwork(displayPokemon, isShiny)}
                   alt={displayPokemon.name}
+                  onError={(e) => {
+                    const fallback = isShiny
+                      ? displayPokemon.sprites?.front_shiny
+                      : displayPokemon.sprites?.front_default;
+                    if (fallback && e.target.src !== fallback) {
+                      e.target.src = fallback;
+                    }
+                  }}
                   onAnimationEnd={(e) => {
                     if (e.animationName === 'pokeballBeamSpawn') {
                       setSpawnKey(currentSpriteKey);

@@ -265,6 +265,7 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primar
     }
 
     return {
+      name: data.name || cleanIdentifier,
       description,
       genus,
       varieties,
@@ -276,6 +277,7 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primar
   } catch (error) {
     console.error(`Error al obtener especie/lore de "${pokemonIdOrName}":`, error);
     return {
+      name: String(pokemonIdOrName).trim().toLowerCase(),
       description:
         lang === 'es'
           ? 'Información de la Pokédex no disponible actualmente.'
@@ -314,6 +316,305 @@ export const getPokemonFormData = async (pokemonNameOrUrl) => {
       cause: error,
     });
   }
+};
+
+/**
+ * Diccionario de traducción y limpieza de nombres de formas especiales (ES / EN)
+ */
+export const FORM_LABELS = {
+  es: {
+    'mega': 'Mega',
+    'mega-x': 'Mega X',
+    'mega-y': 'Mega Y',
+    'gmax': 'Gigamax',
+    'alola': 'Alola',
+    'galar': 'Galar',
+    'hisui': 'Hisui',
+    'paldea': 'Paldea',
+    'disguised': 'Disfrazado',
+    'busted': 'Descubierto',
+    'ice': 'Cara Hielo',
+    'noice': 'Cara Deshielo',
+    'full-belly': 'Saciado',
+    'hangry': 'Voraz',
+    'meteor': 'Meteorito',
+    'red-meteor': 'Meteorito',
+    'orange-meteor': 'Meteorito Naranja',
+    'yellow-meteor': 'Meteorito Amarillo',
+    'green-meteor': 'Meteorito Verde',
+    'blue-meteor': 'Meteorito Azul',
+    'indigo-meteor': 'Meteorito Añil',
+    'violet-meteor': 'Meteorito Violeta',
+    'red': 'Núcleo Rojo',
+    'orange': 'Núcleo Naranja',
+    'yellow': 'Núcleo Amarillo',
+    'green': 'Núcleo Verde',
+    'blue': 'Núcleo Azul',
+    'indigo': 'Núcleo Añil',
+    'violet': 'Núcleo Violeta',
+    'spiky-eared': 'Picoreja',
+    'blade': 'Filo',
+    'shield': 'Escudo',
+    'solo': 'Individual',
+    'school': 'Banco',
+    'sunshine': 'Soleado',
+    'overcast': 'Encapotado',
+    'sunny': 'Sol',
+    'rainy': 'Lluvia',
+    'snowy': 'Nieve',
+    'therian': 'Totémica',
+    'incarnate': 'Avatar',
+    'origin': 'Origen',
+    'altered': 'Modificada',
+    'sky': 'Cielo',
+    'land': 'Tierra',
+    'zen': 'Daruma',
+    'standard': 'Estándar',
+    'pirouette': 'Lírica',
+    'aria': 'Lírica',
+    'ash': 'Ash',
+    'crowned': 'Espada/Escudo Sup.',
+    'crowned-sword': 'Espada Suprema',
+    'crowned-shield': 'Escudo Supremo',
+    'eternamax': 'Eternamax',
+    'bloodmoon': 'Luna Carmesí',
+    'totem': 'Tótem',
+    'totem-disguised': 'Tótem Disfrazado',
+    'totem-busted': 'Tótem Descubierto',
+    'totem-alola': 'Tótem Alola',
+    'starter': 'Compañero',
+    'dusk': 'Crepuscular',
+    'midnight': 'Noche',
+    'midday': 'Día',
+    'low-key': 'Grave',
+    'amped': 'Agudo',
+    'rapid-strike': 'Fluido',
+    'single-strike': 'Brusco',
+    'zero': 'Cero',
+    'hero': 'Héroe',
+    'roaming': 'Andante',
+    'chest': 'Cofre',
+    'stellar': 'Estelar',
+    'terastal': 'Teracristal',
+  },
+  en: {
+    'mega': 'Mega',
+    'mega-x': 'Mega X',
+    'mega-y': 'Mega Y',
+    'gmax': 'Gigantamax',
+    'alola': 'Alolan',
+    'galar': 'Galarian',
+    'hisui': 'Hisuian',
+    'paldea': 'Paldean',
+    'disguised': 'Disguised',
+    'busted': 'Busted',
+    'ice': 'Ice Face',
+    'noice': 'Noice Face',
+    'full-belly': 'Full Belly',
+    'hangry': 'Hangry',
+    'meteor': 'Meteor',
+    'red-meteor': 'Red Meteor',
+    'orange-meteor': 'Orange Meteor',
+    'yellow-meteor': 'Yellow Meteor',
+    'green-meteor': 'Green Meteor',
+    'blue-meteor': 'Blue Meteor',
+    'indigo-meteor': 'Indigo Meteor',
+    'violet-meteor': 'Violet Meteor',
+    'red': 'Red Core',
+    'orange': 'Orange Core',
+    'yellow': 'Yellow Core',
+    'green': 'Green Core',
+    'blue': 'Blue Core',
+    'indigo': 'Indigo Core',
+    'violet': 'Violet Core',
+    'spiky-eared': 'Spiky-eared',
+    'blade': 'Blade',
+    'shield': 'Shield',
+    'solo': 'Solo',
+    'school': 'School',
+    'sunshine': 'Sunshine',
+    'overcast': 'Overcast',
+    'sunny': 'Sunny',
+    'rainy': 'Rainy',
+    'snowy': 'Snowy',
+    'therian': 'Therian',
+    'incarnate': 'Incarnate',
+    'origin': 'Origin',
+    'altered': 'Altered',
+    'sky': 'Sky',
+    'land': 'Land',
+    'zen': 'Zen',
+    'standard': 'Standard',
+    'pirouette': 'Pirouette',
+    'aria': 'Aria',
+    'ash': 'Ash',
+    'crowned': 'Crowned',
+    'crowned-sword': 'Crowned Sword',
+    'crowned-shield': 'Crowned Shield',
+    'eternamax': 'Eternamax',
+    'bloodmoon': 'Bloodmoon',
+    'totem': 'Totem',
+    'totem-disguised': 'Totem Disguised',
+    'totem-busted': 'Totem Busted',
+    'totem-alola': 'Totem Alola',
+    'starter': 'Starter',
+    'dusk': 'Dusk',
+    'midnight': 'Midnight',
+    'midday': 'Midday',
+    'low-key': 'Low Key',
+    'amped': 'Amped',
+    'rapid-strike': 'Rapid Strike',
+    'single-strike': 'Single Strike',
+    'zero': 'Zero Form',
+    'hero': 'Hero Form',
+    'roaming': 'Roaming',
+    'chest': 'Chest',
+    'stellar': 'Stellar',
+    'terastal': 'Terastal',
+  },
+};
+
+export const formatFormLabel = (rawFormName, baseName, lang = 'es') => {
+  if (!rawFormName) {
+    return lang === 'es' ? 'Base' : 'Base';
+  }
+
+  const cleanRaw = String(rawFormName).toLowerCase().trim();
+  const cleanBase = String(baseName || '').toLowerCase().trim();
+
+  if (cleanRaw === cleanBase) {
+    return lang === 'es' ? 'Base' : 'Base';
+  }
+
+  // Extraer el sufijo quitando el nombre base del Pokémon
+  let suffix = cleanRaw;
+  if (cleanBase && cleanRaw.startsWith(`${cleanBase}-`)) {
+    suffix = cleanRaw.slice(cleanBase.length + 1);
+  }
+
+  const dict = FORM_LABELS[lang] || FORM_LABELS.es;
+
+  if (dict[suffix]) return dict[suffix];
+
+  // Fallback limpio capitalizado (ej. 'rock-star' -> 'Rock Star')
+  return suffix
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+/**
+ * Obtiene TODAS las variantes (species.varieties + pokemon.forms cosméticas) sin duplicados
+ */
+export const getAllPokemonForms = async (basePokemonData, speciesData) => {
+  const formsMap = new Map();
+
+  // 1. Añadir todas las varieties de la especie (Megas, Gmax, Regionales, Combate)
+  const varieties = speciesData?.varieties || [];
+  for (const v of varieties) {
+    const name = v.pokemon ? v.pokemon.name : v.name;
+    const url = v.pokemon ? v.pokemon.url : v.url;
+    if (name) {
+      formsMap.set(name, {
+        name,
+        url,
+        type: 'variety',
+        isDefault: v.is_default ?? v.isDefault ?? false,
+      });
+    }
+  }
+
+  // 2. Añadir formas cosméticas exclusivas de pokemon.forms (Morpeko Voraz, Pichu Picoreja, Cherrim Soleado, etc.)
+  if (basePokemonData?.forms) {
+    for (const f of basePokemonData.forms) {
+      if (!formsMap.has(f.name)) {
+        formsMap.set(f.name, {
+          name: f.name,
+          url: f.url,
+          type: 'cosmetic-form',
+          isDefault: false,
+        });
+      }
+    }
+  }
+
+  // 3. Si hay formas cosméticas especializadas que reemplazan el nombre base genérico
+  const baseName = speciesData?.name || basePokemonData?.name;
+  if (baseName && formsMap.has(baseName) && basePokemonData?.forms?.length > 1) {
+    const hasExactBaseForm = basePokemonData.forms.some((f) => f.name === baseName);
+    if (!hasExactBaseForm) {
+      formsMap.delete(baseName);
+    }
+  }
+
+  return Array.from(formsMap.values());
+};
+
+/**
+ * Resuelve y normaliza los datos completos de una variedad de combate o forma cosmética
+ * @param {object} formItem - { name, url, type, isDefault }
+ * @param {object} basePokemonData - Datos completos del Pokémon base
+ * @returns {Promise<object>} Objeto con estructura de Pokémon listo para visualización
+ */
+export const resolvePokemonFormData = async (formItem, basePokemonData) => {
+  if (!formItem) return basePokemonData;
+
+  // Si es una variedad completa (/pokemon/{name})
+  if (formItem.type === 'variety') {
+    return await getPokemonFormData(formItem.name || formItem.url);
+  }
+
+  // Si es una forma cosmética (/pokemon-form/{name})
+  if (formItem.type === 'cosmetic-form') {
+    const key = String(formItem.url || formItem.name).trim();
+    const url = key.startsWith('http')
+      ? key
+      : `${BASE_URL}/pokemon-form/${key.toLowerCase()}`;
+
+    let formData;
+    if (formsCache[url]) {
+      formData = formsCache[url];
+    } else {
+      const response = await axios.get(url);
+      formData = response.data;
+      formsCache[url] = formData;
+    }
+
+    const formId = formData.id;
+    const hdArtwork =
+      formData.sprites?.other?.['official-artwork']?.front_default ||
+      `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${formId}.png`;
+    const hdShiny =
+      formData.sprites?.other?.['official-artwork']?.front_shiny ||
+      `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${formId}.png`;
+
+    return {
+      ...basePokemonData,
+      name: formData.name || formItem.name,
+      formId: formId,
+      types:
+        formData.types && formData.types.length > 0
+          ? formData.types.map((t) => ({
+              slot: t.slot,
+              type: { name: t.type?.name || t.name },
+            }))
+          : basePokemonData.types,
+      sprites: {
+        ...basePokemonData.sprites,
+        front_default: formData.sprites?.front_default || basePokemonData.sprites?.front_default,
+        front_shiny: formData.sprites?.front_shiny || basePokemonData.sprites?.front_shiny,
+        other: {
+          ...basePokemonData.sprites?.other,
+          'official-artwork': {
+            front_default: hdArtwork,
+            front_shiny: hdShiny,
+          },
+        },
+      },
+    };
+  }
+
+  return await getPokemonFormData(formItem.name || formItem.url);
 };
 
 let allPokemonCache = null;
