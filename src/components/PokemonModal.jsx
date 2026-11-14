@@ -51,13 +51,56 @@ const getBarColor = (value) => {
   return '#06b6d4';
 };
 
-function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
+function PokemonModal({
+  pokemon,
+  onClose,
+  onSelectPokemon,
+  language = 'es',
+  comparisonPokemon = null,
+  onSetComparisonPokemon,
+  onClearComparison,
+}) {
   // Gestión de estados locales en el modal
   const [currentPokemon, setCurrentPokemon] = useState(pokemon);
   const [prevPokemonProp, setPrevPokemonProp] = useState(pokemon);
   const [activeVariety, setActiveVariety] = useState(null); // guarda los datos del pokemon de la forma activa
   const [availableVarieties, setAvailableVarieties] = useState([]);
   const [statView, setStatView] = useState('bars'); // 'bars' | 'radar'
+  const [gender, setGender] = useState('male'); // 'male' | 'female'
+  const [isMuted, setIsMuted] = useState(false);
+  const audioCtxRef = useRef(null);
+
+  const playConsoleBeep = useCallback((freq = 880, duration = 0.05, type = 'sine') => {
+    if (isMuted) return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioCtx();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.7, ctx.currentTime + duration);
+
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+    } catch {
+      // AudioContext failure tolerated
+    }
+  }, [isMuted]);
   const [typeRelations, setTypeRelations] = useState({
     strongAgainst: [],
     weakAgainst: [],
@@ -181,17 +224,20 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
     setCurrentPokemon(pokemon);
     setActiveVariety(null);
     setIsShiny(false);
+    setGender('male');
   }
 
   // Navegación por D-Pad / ID
   const handleNavigateId = async (targetId) => {
     if (targetId < 1 || loadingCombatData || loadingSpecies) return;
+    playConsoleBeep(880, 0.05);
     try {
       setLoadingCombatData(true);
       const updated = await getPokemonDetails(targetId);
       setCurrentPokemon(updated);
       setActiveVariety(null);
       setIsShiny(false);
+      setGender('male');
       if (onSelectPokemon) {
         onSelectPokemon(updated);
       }
@@ -207,7 +253,29 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
     handleNavigateIdRef.current = handleNavigateId;
   });
 
-  // Cierre con la tecla Escape y navegación física por teclado (flechas izquierda/derecha)
+  const playCry = useCallback(() => {
+    const cur = currentPokemonRef.current;
+    if (!cur) return;
+    const audioUrl =
+      activeVariety?.cries?.latest ||
+      activeVariety?.cries?.legacy ||
+      cur.cries?.latest ||
+      cur.cries?.legacy;
+    if (audioUrl) {
+      const audio = new Audio(audioUrl);
+      audio.volume = 0.6;
+      audio.play().catch((e) => console.warn('Audio no disponible', e));
+    }
+  }, [activeVariety]);
+
+  const triggerCryWithFlash = useCallback(() => {
+    playCry();
+    playConsoleBeep(1040, 0.06);
+    setLensFlash(true);
+    setTimeout(() => setLensFlash(false), 400);
+  }, [playCry, playConsoleBeep]);
+
+  // Cierre con la tecla Escape, grito con Space y navegación física por teclado (flechas izquierda/derecha)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && onClose) {
@@ -224,11 +292,17 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
         if (cur && cur.id) {
           handleNavigateIdRef.current(cur.id + 1);
         }
+      } else if (e.code === 'Space' || e.key === ' ') {
+        const tag = document.activeElement?.tagName?.toLowerCase();
+        if (tag !== 'input' && tag !== 'textarea' && tag !== 'select') {
+          e.preventDefault();
+          triggerCryWithFlash();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, handleCloseWithAnimation]);
+  }, [onClose, handleCloseWithAnimation, triggerCryWithFlash]);
 
   // Carga reactiva de especie, variedades y evolución al cambiar currentPokemon o language
   useEffect(() => {
@@ -241,6 +315,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
           prevPokemonNameRef.current = currentPokemon.name;
           if (isMounted) {
             setIsShiny(false);
+            setGender('male');
             setActiveVariety(null);
           }
         }
@@ -359,24 +434,10 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
     }
   };
 
-  const playCry = () => {
-    const audioUrl =
-      displayPokemon.cries?.latest ||
-      displayPokemon.cries?.legacy ||
-      currentPokemon.cries?.latest ||
-      currentPokemon.cries?.legacy;
-    if (audioUrl) {
-      const audio = new Audio(audioUrl);
-      audio.volume = 0.6;
-      audio.play().catch((e) => console.warn('Audio no disponible', e));
-    }
-  };
-
-  const triggerCryWithFlash = () => {
-    playCry();
-    setLensFlash(true);
-    setTimeout(() => setLensFlash(false), 400);
-  };
+  const hasFemaleVariant = Boolean(
+    speciesInfo?.has_gender_differences &&
+    (displayPokemon?.sprites?.other?.home?.front_female || displayPokemon?.sprites?.front_female)
+  );
 
   const hasCry = Boolean(
     displayPokemon.cries?.latest ||
@@ -388,6 +449,13 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
 
   const totalStats =
     displayPokemon.stats?.reduce((acc, curr) => acc + curr.base_stat, 0) || 0;
+
+  const isComparing = Boolean(
+    comparisonPokemon && comparisonPokemon.name !== displayPokemon.name
+  );
+  const totalCompare =
+    comparisonPokemon?.stats?.reduce((acc, curr) => acc + curr.base_stat, 0) || 0;
+  const totalDiff = totalStats - totalCompare;
 
   const primaryType = displayPokemon.types?.[0]?.type?.name || 'normal';
   const pastelBg = TYPE_PASTEL_COLORS[primaryType] || '#f8fafc';
@@ -759,32 +827,69 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
             </div>
           </div>
 
-          {/* Botón de cierre en tono vino/rojo oscuro */}
-          <button
-            type="button"
-            onClick={handleCloseWithAnimation}
-            aria-label="Cerrar Pokédex"
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '50%',
-              backgroundColor: '#7f1d1d',
-              color: '#ffffff',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '13px',
-              fontWeight: 'bold',
-              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
-              transition: 'background-color 0.2s',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#991b1b')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#7f1d1d')}
-          >
-            ✕
-          </button>
+          {/* Controles de cabecera: Silencio de consola y Botón Cerrar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                const nextMuted = !isMuted;
+                setIsMuted(nextMuted);
+                if (nextMuted === false) {
+                  playConsoleBeep(880, 0.05);
+                }
+              }}
+              title={
+                isMuted
+                  ? language === 'es' ? 'Activar sonido de consola' : 'Unmute console sound'
+                  : language === 'es' ? 'Silenciar consola' : 'Mute console'
+              }
+              aria-label="Silenciar o activar sonido"
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                backgroundColor: isMuted ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 255, 255, 0.2)',
+                color: '#ffffff',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                transition: 'all 0.2s',
+              }}
+            >
+              {isMuted ? '🔇' : '🔊'}
+            </button>
+
+            {/* Botón de cierre en tono vino/rojo oscuro */}
+            <button
+              type="button"
+              onClick={handleCloseWithAnimation}
+              aria-label="Cerrar Pokédex"
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                backgroundColor: '#7f1d1d',
+                color: '#ffffff',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+                transition: 'background-color 0.2s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#991b1b')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#7f1d1d')}
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Pestañas Superiores de Pantalla en Móvil (Mobile Screen Switcher) */}
@@ -1032,12 +1137,13 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                 </div>
               )}
 
-              {/* Selector Shiny ✨ tipo píldora (encima del sprite) */}
+              {/* Selector Shiny ✨ y Selector Biológico ♂ / ♀ (encima del sprite) */}
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
+                  gap: '8px',
                   marginBottom: '4px',
                   position: 'relative',
                   zIndex: 2,
@@ -1073,6 +1179,38 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                 >
                   {isShiny ? UI_TRANSLATIONS[language].shiny : UI_TRANSLATIONS[language].normal}
                 </button>
+
+                {hasFemaleVariant && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playConsoleBeep(840, 0.05);
+                      setGender((g) => (g === 'male' ? 'female' : 'male'));
+                    }}
+                    title={
+                      gender === 'male'
+                        ? language === 'es' ? 'Alternar a hembra (♀)' : 'Switch to female (♀)'
+                        : language === 'es' ? 'Alternar a macho (♂)' : 'Switch to male (♂)'
+                    }
+                    style={{
+                      backgroundColor: gender === 'female' ? '#fce7f3' : '#e0f2fe',
+                      color: gender === 'female' ? '#db2777' : '#0284c7',
+                      border: gender === 'female' ? '1px solid #f472b6' : '1px solid #7dd3fc',
+                      borderRadius: '9999px',
+                      padding: '3px 12px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.2s ease',
+                      boxShadow: gender === 'female' ? '0 2px 4px rgba(219, 39, 119, 0.25)' : '0 2px 4px rgba(2, 132, 199, 0.25)',
+                    }}
+                  >
+                    {gender === 'female' ? (language === 'es' ? '♀ Hembra' : '♀ Female') : (language === 'es' ? '♂ Macho' : '♂ Male')}
+                  </button>
+                )}
               </div>
 
               {/* Sprite Oficial centrado y agrandado con Pokéball concéntrica */}
@@ -1113,13 +1251,17 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}
                 />
                 <img
-                  key={`${displayPokemon.id}-${displayPokemon.name}-${isShiny}`}
-                  src={getHighResArtwork(displayPokemon, isShiny)}
+                  key={`${displayPokemon.id}-${displayPokemon.name}-${isShiny}-${gender}`}
+                  src={getHighResArtwork(displayPokemon, isShiny, gender)}
                   alt={displayPokemon.name}
                   onError={(e) => {
-                    const fallback = isShiny
-                      ? displayPokemon.sprites?.other?.home?.front_shiny || displayPokemon.sprites?.front_shiny
-                      : displayPokemon.sprites?.other?.home?.front_default || displayPokemon.sprites?.front_default;
+                    const fallback = gender === 'female'
+                      ? (isShiny
+                          ? displayPokemon.sprites?.other?.home?.front_shiny_female || displayPokemon.sprites?.front_shiny_female
+                          : displayPokemon.sprites?.other?.home?.front_female || displayPokemon.sprites?.front_female)
+                      : (isShiny
+                          ? displayPokemon.sprites?.other?.home?.front_shiny || displayPokemon.sprites?.front_shiny
+                          : displayPokemon.sprites?.other?.home?.front_default || displayPokemon.sprites?.front_default);
                     if (fallback && e.target.src !== fallback) {
                       e.target.src = fallback;
                     }
@@ -1477,11 +1619,11 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                 color={TYPE_BORDER_COLORS[primaryType] || '#94a3b8'}
               />
 
-              {/* Pestañas de Navegación: Información / Movimientos */}
+              {/* Pestañas de Navegación: Información / Movimientos y Botón ⚔️ Comparar */}
               <div
                 style={{
                   display: 'flex',
-                  gap: '8px',
+                  gap: '6px',
                   marginBottom: '10px',
                   borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
                   paddingBottom: '8px',
@@ -1491,7 +1633,10 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
               >
                 <button
                   type="button"
-                  onClick={() => setActiveTab('info')}
+                  onClick={() => {
+                    playConsoleBeep(740, 0.05);
+                    setActiveTab('info');
+                  }}
                   style={{
                     flex: 1,
                     padding: '7px',
@@ -1510,7 +1655,10 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('moves')}
+                  onClick={() => {
+                    playConsoleBeep(740, 0.05);
+                    setActiveTab('moves');
+                  }}
                   style={{
                     flex: 1,
                     padding: '7px',
@@ -1527,12 +1675,112 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                 >
                   {language === 'es' ? 'Movimientos' : 'Moves'}
                 </button>
+
+                {/* Botón Discreto ⚔️ Comparar */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    playConsoleBeep(880, 0.06);
+                    if (comparisonPokemon && comparisonPokemon.name === displayPokemon.name) {
+                      if (onClearComparison) onClearComparison();
+                    } else {
+                      if (onSetComparisonPokemon) onSetComparisonPokemon(displayPokemon);
+                    }
+                  }}
+                  title={
+                    comparisonPokemon
+                      ? comparisonPokemon.name === displayPokemon.name
+                        ? language === 'es' ? 'Fijado como P1. Clic para deseleccionar.' : 'Pinned as P1. Click to deselect.'
+                        : language === 'es' ? 'Comparando. Clic para reiniciar con este Pokémon.' : 'Comparing. Click to reset with this Pokémon.'
+                      : language === 'es' ? 'Fijar este Pokémon como Contendiente 1 para comparar' : 'Pin this Pokémon to compare stats'
+                  }
+                  style={{
+                    padding: '7px 12px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontWeight: '700',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    backgroundColor: comparisonPokemon
+                      ? comparisonPokemon.name === displayPokemon.name
+                        ? '#f59e0b'
+                        : '#10b981'
+                      : 'rgba(255, 255, 255, 0.8)',
+                    color: comparisonPokemon ? '#ffffff' : '#475569',
+                    transition: 'all 0.2s ease',
+                    boxShadow: comparisonPokemon ? '0 2px 6px rgba(0,0,0,0.15)' : 'none',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <span>⚔️</span>
+                  <span>
+                    {comparisonPokemon
+                      ? comparisonPokemon.name === displayPokemon.name
+                        ? (language === 'es' ? 'Fijado P1' : 'Pinned P1')
+                        : (language === 'es' ? 'Comparando' : 'Comparing')
+                      : (language === 'es' ? 'Comparar' : 'Compare')}
+                  </span>
+                </button>
               </div>
 
               {/* Contenido de la pestaña activa */}
               <div style={{ flex: 1, position: 'relative', zIndex: 2 }}>
                 {activeTab === 'info' && (
                   <div>
+                    {/* Banner de Modo Comparación VS */}
+                    {comparisonPokemon && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          backgroundColor: comparisonPokemon.name === displayPokemon.name ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                          border: `1.5px solid ${comparisonPokemon.name === displayPokemon.name ? '#f59e0b' : '#10b981'}`,
+                          borderRadius: '12px',
+                          padding: '8px 12px',
+                          marginBottom: '10px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', fontWeight: 800, color: comparisonPokemon.name === displayPokemon.name ? '#b45309' : '#047857' }}>
+                          <span style={{ fontSize: '1rem' }}>⚔️</span>
+                          <span>
+                            {comparisonPokemon.name === displayPokemon.name
+                              ? (language === 'es'
+                                  ? `Fijado P1: ${getCleanSpeciesName(displayPokemon)} — Abre otro Pokémon para comparar`
+                                  : `Pinned P1: ${getCleanSpeciesName(displayPokemon)} — Open another Pokémon to compare`)
+                              : (language === 'es'
+                                  ? `VS: ${getCleanSpeciesName(displayPokemon)} frente a ${getCleanSpeciesName(comparisonPokemon)}`
+                                  : `VS: ${getCleanSpeciesName(displayPokemon)} vs ${getCleanSpeciesName(comparisonPokemon)}`)}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            playConsoleBeep(640, 0.05);
+                            if (onClearComparison) onClearComparison();
+                          }}
+                          style={{
+                            backgroundColor: comparisonPokemon.name === displayPokemon.name ? '#d97706' : '#ef4444',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '4px 10px',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          ✕ {comparisonPokemon.name === displayPokemon.name
+                            ? (language === 'es' ? 'Cancelar' : 'Cancel')
+                            : (language === 'es' ? 'Salir de Comparación' : 'Exit Comparison')}
+                        </button>
+                      </div>
+                    )}
                     {/* Sección: HABILIDADES (ubicada justo arriba de Eficacia en Combate) */}
                     <div
                       style={{
@@ -1830,7 +2078,9 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                               color: '#0f172a',
                             }}
                           >
-                            {UI_TRANSLATIONS[language].total}: {totalStats}
+                            {isComparing
+                              ? `${UI_TRANSLATIONS[language].total}: ${totalStats} vs ${totalCompare} (${totalDiff > 0 ? `+${totalDiff}` : totalDiff})`
+                              : `${UI_TRANSLATIONS[language].total}: ${totalStats}`}
                           </span>
                         </div>
                       </div>
@@ -1842,6 +2092,117 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                             color={TYPE_BORDER_COLORS[primaryType] || '#22c55e'}
                             size={185}
                           />
+                        </div>
+                      ) : isComparing ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {/* Encabezado comparativo VS */}
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '50px 32px 1fr 32px 38px',
+                              alignItems: 'center',
+                              gap: '6px',
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              color: '#64748b',
+                              borderBottom: '1px solid #cbd5e1',
+                              paddingBottom: '3px',
+                            }}
+                          >
+                            <span>STAT</span>
+                            <span style={{ textAlign: 'right', color: '#0f172a' }}>P1</span>
+                            <span style={{ textAlign: 'center', fontSize: '0.65rem' }}>VS</span>
+                            <span style={{ textAlign: 'left', color: '#64748b' }}>P2</span>
+                            <span style={{ textAlign: 'right' }}>DIF</span>
+                          </div>
+                          {displayPokemon.stats?.map((s) => {
+                            const label = STAT_LABELS[s.stat.name] || s.stat.name.toUpperCase();
+                            const valCurrent = s.base_stat;
+                            const compareStat = comparisonPokemon?.stats?.find((cs) => cs.stat.name === s.stat.name);
+                            const valCompare = compareStat ? compareStat.base_stat : 0;
+                            const diff = valCurrent - valCompare;
+                            const isCurrentWinner = valCurrent > valCompare;
+                            const isCompareWinner = valCompare > valCurrent;
+                            const pctCurrent = Math.min(100, (valCurrent / 255) * 100);
+                            const pctCompare = Math.min(100, (valCompare / 255) * 100);
+
+                            return (
+                              <div
+                                key={s.stat.name}
+                                style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: '50px 32px 1fr 32px 38px',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  fontSize: '0.72rem',
+                                }}
+                              >
+                                <span style={{ fontWeight: 600, color: '#64748b' }}>{label}</span>
+                                <span
+                                  style={{
+                                    fontWeight: 800,
+                                    color: isCurrentWinner ? '#10b981' : isCompareWinner ? '#94a3b8' : '#0f172a',
+                                    textAlign: 'right',
+                                  }}
+                                >
+                                  {valCurrent}
+                                </span>
+                                {/* Doble barra comparativa frente a frente */}
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                    backgroundColor: '#f1f5f9',
+                                    padding: '2px',
+                                    borderRadius: '6px',
+                                  }}
+                                >
+                                  <div style={{ height: '4px', backgroundColor: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
+                                    <div
+                                      style={{
+                                        height: '100%',
+                                        width: `${pctCurrent}%`,
+                                        backgroundColor: isCurrentWinner ? '#10b981' : '#94a3b8',
+                                        borderRadius: '9999px',
+                                        transition: 'width 0.4s ease',
+                                      }}
+                                    />
+                                  </div>
+                                  <div style={{ height: '4px', backgroundColor: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
+                                    <div
+                                      style={{
+                                        height: '100%',
+                                        width: `${pctCompare}%`,
+                                        backgroundColor: isCompareWinner ? '#10b981' : '#94a3b8',
+                                        borderRadius: '9999px',
+                                        transition: 'width 0.4s ease',
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                                <span
+                                  style={{
+                                    fontWeight: 800,
+                                    color: isCompareWinner ? '#10b981' : isCurrentWinner ? '#94a3b8' : '#0f172a',
+                                    textAlign: 'left',
+                                  }}
+                                >
+                                  {valCompare}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: '0.69rem',
+                                    fontWeight: 800,
+                                    color: diff > 0 ? '#10b981' : diff < 0 ? '#ef4444' : '#64748b',
+                                    textAlign: 'right',
+                                  }}
+                                >
+                                  {diff > 0 ? `+${diff}` : diff === 0 ? '=' : diff}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>

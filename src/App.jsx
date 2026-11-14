@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { getPokemonList, getPokemonDetails, getAllPokemonNames } from './services/pokemonService';
+import { getPokemonList, getPokemonDetails, getAllPokemonNames, getCleanSpeciesName } from './services/pokemonService';
 import PokemonGrid from './components/PokemonGrid';
 import PokemonCard from './components/PokemonCard';
 import PokemonModal from './components/PokemonModal';
@@ -42,6 +42,7 @@ function App() {
   const [inputPage, setInputPage] = useState(1);
   const [search, setSearch] = useState('');
   const [selectedPokemon, setSelectedPokemon] = useState(null);
+  const [comparisonPokemon, setComparisonPokemon] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -124,15 +125,23 @@ function App() {
       const urlParts = p.url ? p.url.split('/').filter(Boolean) : [];
       const pId = parseInt(urlParts[urlParts.length - 1], 10);
 
+      // Si hay una región específica seleccionada (distinta de 'all'), respetar sus límites
+      if (selectedRegion !== 'all') {
+        const minId = currentRegion.offset + 1;
+        const maxId = currentRegion.offset + currentRegion.limit;
+        if (pId < minId || pId > maxId) return false;
+      }
+
       // 1. Si busca por número o almohadilla (#001, 1, 25): coincidencia numérica EXACTA
       if (isNumeric) {
         return pId === searchId;
       }
 
-      // 2. Si busca por texto (ej. 'char', 'pika'): coincidencia en el nombre
-      return p.name.toLowerCase().includes(rawQuery);
+      // 2. Si busca por texto (ej. 'char', 'pika', 'mimi'): coincidencia en el nombre o nombre sin guiones
+      const cleanName = p.name.toLowerCase().replace(/-/g, ' ');
+      return p.name.toLowerCase().includes(rawQuery) || cleanName.includes(rawQuery);
     });
-  }, [allPokemons, isSearchActive, isNumeric, searchId, rawQuery]);
+  }, [allPokemons, isSearchActive, isNumeric, searchId, rawQuery, selectedRegion, currentRegion]);
 
   const goToPage = (newPage) => {
     const valid = Math.max(1, Math.min(newPage, totalPages));
@@ -517,6 +526,56 @@ function App() {
           </select>
         </div>
 
+        {/* Indicador Flotante de Comparación Activa */}
+        {comparisonPokemon && (
+          <div
+            style={{
+              backgroundColor: '#f59e0b',
+              color: '#ffffff',
+              padding: '6px 18px',
+              borderRadius: '30px',
+              boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              marginBottom: '14px',
+              position: 'relative',
+              zIndex: 10,
+              maxWidth: '90%',
+            }}
+          >
+            <span>⚔️</span>
+            <span>
+              {language === 'es'
+                ? `Comparando con ${getCleanSpeciesName(comparisonPokemon)} — Selecciona otro Pokémon`
+                : `Comparing with ${getCleanSpeciesName(comparisonPokemon)} — Select another Pokémon`}
+            </span>
+            <button
+              type="button"
+              onClick={() => setComparisonPokemon(null)}
+              style={{
+                background: 'rgba(0, 0, 0, 0.25)',
+                border: 'none',
+                borderRadius: '50%',
+                color: '#ffffff',
+                width: '20px',
+                height: '20px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: '4px',
+              }}
+              title={language === 'es' ? 'Cancelar comparación' : 'Cancel comparison'}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Contenedor de la Cuadrícula */}
         <div
           ref={gridContainerRef}
@@ -839,6 +898,9 @@ function App() {
           language={language}
           onClose={() => setSelectedPokemon(null)}
           onSelectPokemon={setSelectedPokemon}
+          comparisonPokemon={comparisonPokemon}
+          onSetComparisonPokemon={setComparisonPokemon}
+          onClearComparison={() => setComparisonPokemon(null)}
         />
       )}
     </div>

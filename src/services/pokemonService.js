@@ -290,6 +290,7 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primar
     const rawHabitat = data.habitat ? data.habitat.name : null;
     const isMythical = Boolean(data.is_mythical);
     const isLegendary = Boolean(data.is_legendary);
+    const hasGenderDifferences = Boolean(data.has_gender_differences);
     const habitat = resolveHabitat(
       rawHabitat,
       isMythical,
@@ -321,6 +322,7 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primar
       evolutionChain,
       isLegendary,
       isMythical,
+      has_gender_differences: hasGenderDifferences,
     };
   } catch (error) {
     console.error(`Error al obtener especie/lore de "${pokemonIdOrName}":`, error);
@@ -337,6 +339,7 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primar
       evolutionChain: [],
       isLegendary: false,
       isMythical: false,
+      has_gender_differences: false,
     };
   }
 };
@@ -422,7 +425,7 @@ export const FORM_LABELS = {
     'pirouette': 'Lírica',
     'aria': 'Lírica',
     'ash': 'Ash',
-    'crowned': 'Espada/Escudo Sup.',
+    'crowned': 'Forma Suprema',
     'crowned-sword': 'Espada Suprema',
     'crowned-shield': 'Escudo Supremo',
     'eternamax': 'Eternamax',
@@ -432,19 +435,46 @@ export const FORM_LABELS = {
     'totem-busted': 'Tótem Descubierto',
     'totem-alola': 'Tótem Alola',
     'starter': 'Compañero',
-    'dusk': 'Crepuscular',
+    'dusk': 'Melena Crepuscular',
+    'dawn': 'Alas del Alba',
+    'ultra': 'Ultra',
+    'shadow': 'Jinete Espectral',
+    'black': 'Kyurem Negro',
+    'white': 'Kyurem Blanco',
+    '10': 'Forma 10%',
+    '50': 'Forma 50%',
+    'complete': 'Forma Completa',
+    'rapid-strike': 'Estilo Fluido',
+    'single-strike': 'Estilo Brusco',
+    'wellspring-mask': 'Máscara Fuente',
+    'hearthflame-mask': 'Máscara Horno',
+    'cornerstone-mask': 'Máscara Cimiento',
+    'terastal': 'Teracristal',
+    'stellar': 'Astral',
+    'paldea-combat-breed': 'Paldea Combativa',
+    'paldea-blaze-breed': 'Paldea Ardiente',
+    'paldea-aqua-breed': 'Paldea Acuática',
+    'low-key': 'Forma Grave',
+    'amped': 'Forma Aguda',
+    'baile': 'Apasionado',
+    'pom-pom': 'Animado',
+    'pau': 'Plácido',
+    'sensu': 'Refinado',
     'midnight': 'Noche',
     'midday': 'Día',
-    'low-key': 'Grave',
-    'amped': 'Agudo',
-    'rapid-strike': 'Fluido',
-    'single-strike': 'Brusco',
-    'zero': 'Cero',
+    'dusk-form': 'Crepúsculo',
     'hero': 'Héroe',
+    'zero': 'Ingenua',
+    'stretchy': 'Elástica',
+    'droopy': 'Lánguida',
+    'curly': 'Curvada',
+    'three-segment': 'Tres Segmentos',
+    'family-of-three': 'Familia de Tres',
+    'family-of-four': 'Familia de Cuatro',
+    'male': '♂ Macho',
+    'female': '♀ Hembra',
     'roaming': 'Andante',
     'chest': 'Cofre',
-    'stellar': 'Estelar',
-    'terastal': 'Teracristal',
   },
   en: {
     'mega': 'Mega',
@@ -507,19 +537,46 @@ export const FORM_LABELS = {
     'totem-busted': 'Totem Busted',
     'totem-alola': 'Totem Alola',
     'starter': 'Starter',
-    'dusk': 'Dusk',
-    'midnight': 'Midnight',
-    'midday': 'Midday',
-    'low-key': 'Low Key',
-    'amped': 'Amped',
+    'dusk': 'Dusk Mane',
+    'dawn': 'Dawn Wings',
+    'ultra': 'Ultra',
+    'shadow': 'Shadow Rider',
+    'black': 'Black Kyurem',
+    'white': 'White Kyurem',
+    '10': '10% Forme',
+    '50': '50% Forme',
+    'complete': 'Complete Forme',
     'rapid-strike': 'Rapid Strike',
     'single-strike': 'Single Strike',
-    'zero': 'Zero Form',
+    'wellspring-mask': 'Wellspring Mask',
+    'hearthflame-mask': 'Hearthflame Mask',
+    'cornerstone-mask': 'Cornerstone Mask',
+    'terastal': 'Terastal',
+    'stellar': 'Stellar',
+    'paldea-combat-breed': 'Paldean Combat Breed',
+    'paldea-blaze-breed': 'Paldean Blaze Breed',
+    'paldea-aqua-breed': 'Paldean Aqua Breed',
+    'low-key': 'Low Key',
+    'amped': 'Amped',
+    'baile': 'Baile',
+    'pom-pom': 'Pom-Pom',
+    'pau': 'Pa\'u',
+    'sensu': 'Sensu',
+    'midnight': 'Midnight',
+    'midday': 'Midday',
+    'dusk-form': 'Dusk Form',
     'hero': 'Hero Form',
+    'zero': 'Zero Form',
+    'stretchy': 'Stretchy',
+    'droopy': 'Droopy',
+    'curly': 'Curly',
+    'three-segment': 'Three-Segment',
+    'family-of-three': 'Family of Three',
+    'family-of-four': 'Family of Four',
+    'male': '♂ Male',
+    'female': '♀ Female',
     'roaming': 'Roaming',
     'chest': 'Chest',
-    'stellar': 'Stellar',
-    'terastal': 'Terastal',
   },
 };
 
@@ -947,9 +1004,36 @@ export const getShowdownSlug = (pokemonName) => {
 
 /**
  * Resuelve la ilustración oficial en alta resolución / 3D Home de PokéAPI
+ * @param {object} pokemon - Datos del Pokémon
+ * @param {boolean} isShiny - Si es variante variocolor
+ * @param {string} gender - 'male' | 'female'
  */
-export const getHighResArtwork = (pokemon, isShiny = false) => {
+export const getHighResArtwork = (pokemon, isShiny = false, gender = 'male') => {
   if (!pokemon) return '';
+  if (gender === 'female') {
+    if (isShiny) {
+      return (
+        pokemon.sprites?.other?.home?.front_shiny_female ||
+        pokemon.sprites?.other?.['official-artwork']?.front_shiny_female ||
+        pokemon.sprites?.front_shiny_female ||
+        pokemon.sprites?.other?.home?.front_female ||
+        pokemon.sprites?.front_female ||
+        pokemon.sprites?.other?.['official-artwork']?.front_shiny ||
+        pokemon.sprites?.other?.home?.front_shiny ||
+        pokemon.sprites?.front_shiny ||
+        ''
+      );
+    }
+    return (
+      pokemon.sprites?.other?.home?.front_female ||
+      pokemon.sprites?.other?.['official-artwork']?.front_female ||
+      pokemon.sprites?.front_female ||
+      pokemon.sprites?.other?.['official-artwork']?.front_default ||
+      pokemon.sprites?.other?.home?.front_default ||
+      pokemon.sprites?.front_default ||
+      ''
+    );
+  }
   if (isShiny) {
     return (
       pokemon.sprites?.other?.['official-artwork']?.front_shiny ||

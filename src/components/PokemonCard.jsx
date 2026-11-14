@@ -8,6 +8,33 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
   const hasFullData = Boolean(pokemon?.types && pokemon?.sprites);
   const [details, setDetails] = useState(hasFullData ? pokemon : null);
   const [loading, setLoading] = useState(!hasFullData);
+  const [tilt, setTilt] = useState({ rx: 0, ry: 0, x: 50, y: 50, active: false });
+
+  const handleMouseMove = (e) => {
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const width = rect.width;
+    const height = rect.height;
+
+    // Normalizar relativo al centro (-1 a 1)
+    const normX = ((x / width) - 0.5) * 2;
+    const normY = ((y / height) - 0.5) * 2;
+
+    const rx = -(normY * 8);
+    const ry = normX * 8;
+    const pctX = (x / width) * 100;
+    const pctY = (y / height) * 100;
+
+    setTilt({ rx, ry, x: pctX, y: pctY, active: true });
+  };
+
+  const handleMouseLeave = () => {
+    setTilt({ rx: 0, ry: 0, x: 50, y: 50, active: false });
+  };
 
   useEffect(() => {
     if (hasFullData) {
@@ -82,6 +109,8 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
   return (
     <div
       onClick={handleClick}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
       className="pokemon-card"
       style={{
         width: '100%',
@@ -98,17 +127,35 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
         justifyContent: 'space-between',
         cursor: 'pointer',
         position: 'relative',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-6px)';
-        e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.15)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = 'none';
+        transform: tilt.active
+          ? `perspective(700px) rotateX(${tilt.rx.toFixed(2)}deg) rotateY(${tilt.ry.toFixed(2)}deg) translateY(-6px)`
+          : 'perspective(700px) rotateX(0deg) rotateY(0deg) translateY(0)',
+        boxShadow: tilt.active
+          ? '0 16px 30px rgba(0, 0, 0, 0.18)'
+          : '0 2px 8px rgba(0, 0, 0, 0.06)',
+        transition: tilt.active
+          ? 'transform 0.08s ease-out, box-shadow 0.2s ease'
+          : 'transform 0.35s ease, box-shadow 0.35s ease',
+        overflow: 'hidden',
+        willChange: 'transform',
       }}
     >
+      {/* Capa Holográfica Foil 3D Dinámica estilo TCG */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: 'inherit',
+          background: tilt.active
+            ? `radial-gradient(circle at ${tilt.x}% ${tilt.y}%, rgba(255, 255, 255, 0.45), transparent 65%), linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, transparent 50%, rgba(255, 255, 255, 0.1) 100%)`
+            : 'none',
+          opacity: tilt.active ? 1 : 0,
+          transition: 'opacity 0.25s ease',
+          pointerEvents: 'none',
+          zIndex: 3,
+        }}
+      />
+
       {/* Micro-patrones vectoriales decorativos en las esquinas según el tipo elemental */}
       <TypeDecorations type={primaryType} color={TYPE_BORDER_COLORS?.[primaryType]} />
 
