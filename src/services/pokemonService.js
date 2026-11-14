@@ -194,17 +194,65 @@ const parseEvolutionChain = (chainNode, targetName = '', lang = 'es') => {
 };
 
 /**
+ * Obtiene la información básica de la especie para un Pokémon o ID sin fallar en nombres con sufijo
+ * @param {object|string|number} pokemonOrId
+ * @returns {Promise<object|null>}
+ */
+export const getPokemonSpecies = async (pokemonOrId) => {
+  try {
+    let url;
+    if (typeof pokemonOrId === 'object' && pokemonOrId !== null) {
+      if (pokemonOrId.species?.url) {
+        url = pokemonOrId.species.url;
+      } else if (pokemonOrId.id && pokemonOrId.id <= 1025) {
+        url = `${BASE_URL}/pokemon-species/${pokemonOrId.id}`;
+      } else {
+        const cleanKey = String(pokemonOrId.id || pokemonOrId.name || '').split('-')[0].toLowerCase().trim();
+        url = `${BASE_URL}/pokemon-species/${cleanKey}`;
+      }
+    } else {
+      const idOrName = String(pokemonOrId).trim().toLowerCase();
+      const cleanKey = idOrName.split('-')[0];
+      url = `${BASE_URL}/pokemon-species/${cleanKey}`;
+    }
+    const res = await axios.get(url);
+    return res.data;
+  } catch (err) {
+    console.error('Error fetching species:', err);
+    return null;
+  }
+};
+
+/**
  * Obtiene la información de la especie (lore/descripción de la Pokédex y categoría/género) en el idioma seleccionado.
- * @param {string|number} pokemonIdOrName - ID o nombre del Pokémon
+ * @param {string|number|object} pokemonIdOrName - Objeto Pokémon, ID o nombre
  * @param {string} lang - Código de idioma ('es' o 'en')
  * @param {string|null} primaryType - Tipo elemental primario opcional para inferencia de hábitat
- * @returns {Promise<{ description: string, genus: string, varieties: Array, habitat: string, evolutionChain: Array }>}
+ * @returns {Promise<{ description: string, genus: string, varieties: Array, habitat: string, evolutionChain: Array, isLegendary: boolean, isMythical: boolean }>}
  */
 export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primaryType = null) => {
   try {
-    const cleanIdentifier = String(pokemonIdOrName).trim().toLowerCase();
-    const response = await axios.get(`${BASE_URL}/pokemon-species/${cleanIdentifier}`);
+    let url;
+    let identifierForFallback = '';
+    if (typeof pokemonIdOrName === 'object' && pokemonIdOrName !== null) {
+      identifierForFallback = pokemonIdOrName.name || '';
+      if (pokemonIdOrName.species?.url) {
+        url = pokemonIdOrName.species.url;
+      } else if (pokemonIdOrName.id && pokemonIdOrName.id <= 1025) {
+        url = `${BASE_URL}/pokemon-species/${pokemonIdOrName.id}`;
+      } else {
+        const cleanKey = String(pokemonIdOrName.id || pokemonIdOrName.name || '').split('-')[0].toLowerCase().trim();
+        url = `${BASE_URL}/pokemon-species/${cleanKey}`;
+      }
+    } else {
+      identifierForFallback = String(pokemonIdOrName).trim().toLowerCase();
+      const cleanKey = identifierForFallback.split('-')[0];
+      url = `${BASE_URL}/pokemon-species/${cleanKey}`;
+    }
+
+    const response = await axios.get(url);
     const data = response.data || {};
+    const speciesName = data.name || identifierForFallback;
 
     // 1. Obtener flavor_text en el idioma seleccionado, o fallback a inglés ('en')
     const flavorEntries = data.flavor_text_entries || [];
@@ -232,9 +280,9 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primar
     // 3. Extraer variedades (formas alternativas, mega, gmax, etc.)
     const varieties = Array.isArray(data.varieties)
       ? data.varieties.map((v) => ({
-        name: v.pokemon.name,
-        url: v.pokemon.url,
-        is_default: v.is_default,
+        name: v.pokemon ? v.pokemon.name : v.name,
+        url: v.pokemon ? v.pokemon.url : v.url,
+        is_default: v.is_default ?? v.isDefault ?? false,
       }))
       : [];
 
@@ -247,7 +295,7 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primar
       isMythical,
       isLegendary,
       primaryType,
-      data.name || cleanIdentifier
+      speciesName
     );
 
     // 5. Extraer y procesar cadena evolutiva
@@ -257,7 +305,7 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primar
       try {
         const evoResponse = await axios.get(evolutionChainUrl);
         if (evoResponse.data?.chain) {
-          evolutionChain = parseEvolutionChain(evoResponse.data.chain, cleanIdentifier, lang);
+          evolutionChain = parseEvolutionChain(evoResponse.data.chain, speciesName, lang);
         }
       } catch (evoErr) {
         console.warn('Error al obtener la cadena de evolución:', evoErr);
@@ -265,7 +313,7 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primar
     }
 
     return {
-      name: data.name || cleanIdentifier,
+      name: speciesName,
       description,
       genus,
       varieties,
@@ -276,15 +324,16 @@ export const getPokemonSpeciesData = async (pokemonIdOrName, lang = 'es', primar
     };
   } catch (error) {
     console.error(`Error al obtener especie/lore de "${pokemonIdOrName}":`, error);
+    const rawName = typeof pokemonIdOrName === 'object' ? (pokemonIdOrName.name || '') : String(pokemonIdOrName);
     return {
-      name: String(pokemonIdOrName).trim().toLowerCase(),
+      name: rawName.trim().toLowerCase(),
       description:
         lang === 'es'
           ? 'Información de la Pokédex no disponible actualmente.'
           : 'Pokédex information currently unavailable.',
       genus: lang === 'es' ? 'Pokémon Desconocido' : 'Unknown Pokémon',
       varieties: [],
-      habitat: resolveHabitat(null, false, false, primaryType, pokemonIdOrName),
+      habitat: resolveHabitat(null, false, false, primaryType, rawName),
       evolutionChain: [],
       isLegendary: false,
       isMythical: false,
@@ -504,68 +553,69 @@ export const formatFormLabel = (rawFormName, baseName, lang = 'es') => {
 };
 
 /**
- * Obtiene TODAS las variantes (species.varieties + pokemon.forms cosméticas) sin duplicados
+ * Obtiene TODAS las variantes (species.varieties + pokemon.forms cosméticas) sin filtros restrictivos
+ * Combina speciesData.varieties con basePokemon.forms
  */
-export const getAllPokemonForms = async (basePokemonData, speciesData) => {
-  const formsMap = new Map();
+export const getAllPokemonVariants = async (basePokemon, speciesData) => {
+  const variantsMap = new Map();
 
-  // 1. Añadir todas las varieties de la especie (Megas, Gmax, Regionales, Combate)
-  const varieties = speciesData?.varieties || [];
-  for (const v of varieties) {
-    const name = v.pokemon ? v.pokemon.name : v.name;
-    const url = v.pokemon ? v.pokemon.url : v.url;
-    if (name) {
-      formsMap.set(name, {
-        name,
-        url,
-        type: 'variety',
-        isDefault: v.is_default ?? v.isDefault ?? false,
-      });
+  // 1. Agregar todas las variedades de speciesData.varieties (SIN filtrar ni excluir ninguna)
+  if (speciesData?.varieties?.length > 0) {
+    for (const v of speciesData.varieties) {
+      // Excluir únicamente formas totem de Alola ('-totem') si duplican el modelo, pero conservar TODO lo demás
+      const vName = v.pokemon ? v.pokemon.name : v.name;
+      const vUrl = v.pokemon ? v.pokemon.url : v.url;
+      const isDef = v.is_default ?? v.isDefault ?? false;
+      if (vName && !vName.includes('-totem')) {
+        variantsMap.set(vName, {
+          name: vName,
+          url: vUrl,
+          sourceType: 'variety',
+          type: 'variety',
+          isDefault: isDef,
+        });
+      }
     }
   }
 
-  // 2. Añadir formas cosméticas exclusivas de pokemon.forms (Morpeko Voraz, Pichu Picoreja, Cherrim Soleado, etc.)
-  if (basePokemonData?.forms) {
-    for (const f of basePokemonData.forms) {
-      if (!formsMap.has(f.name)) {
-        formsMap.set(f.name, {
+  // 2. Agregar todas las formas cosméticas de basePokemon.forms (ej. morpeko-hangry, pichu-spiky-eared)
+  if (basePokemon?.forms?.length > 0) {
+    for (const f of basePokemon.forms) {
+      if (!variantsMap.has(f.name) && !f.name.includes('-totem')) {
+        variantsMap.set(f.name, {
           name: f.name,
           url: f.url,
-          type: 'cosmetic-form',
+          sourceType: 'form',
+          type: 'form',
           isDefault: false,
         });
       }
     }
   }
 
-  // 3. Si hay formas cosméticas especializadas que reemplazan el nombre base genérico
-  const baseName = speciesData?.name || basePokemonData?.name;
-  if (baseName && formsMap.has(baseName) && basePokemonData?.forms?.length > 1) {
-    const hasExactBaseForm = basePokemonData.forms.some((f) => f.name === baseName);
-    if (!hasExactBaseForm) {
-      formsMap.delete(baseName);
-    }
-  }
-
-  return Array.from(formsMap.values());
+  return Array.from(variantsMap.values());
 };
+
+export const getAllPokemonForms = getAllPokemonVariants;
 
 /**
  * Resuelve y normaliza los datos completos de una variedad de combate o forma cosmética
- * @param {object} formItem - { name, url, type, isDefault }
+ * @param {object} formItem - { name, url, sourceType, type, isDefault }
  * @param {object} basePokemonData - Datos completos del Pokémon base
  * @returns {Promise<object>} Objeto con estructura de Pokémon listo para visualización
  */
 export const resolvePokemonFormData = async (formItem, basePokemonData) => {
   if (!formItem) return basePokemonData;
 
+  const itemType = formItem.sourceType || formItem.type;
+
   // Si es una variedad completa (/pokemon/{name})
-  if (formItem.type === 'variety') {
-    return await getPokemonFormData(formItem.name || formItem.url);
+  if (itemType === 'variety') {
+    return await getPokemonFormData(formItem.url || formItem.name);
   }
 
   // Si es una forma cosmética (/pokemon-form/{name})
-  if (formItem.type === 'cosmetic-form') {
+  if (itemType === 'form' || itemType === 'cosmetic-form') {
     const key = String(formItem.url || formItem.name).trim();
     const url = key.startsWith('http')
       ? key
@@ -609,13 +659,44 @@ export const resolvePokemonFormData = async (formItem, basePokemonData) => {
             front_default: hdArtwork,
             front_shiny: hdShiny,
           },
+          home: {
+            ...basePokemonData.sprites?.other?.home,
+            front_default:
+              formData.sprites?.other?.home?.front_default ||
+              basePokemonData.sprites?.other?.home?.front_default,
+            front_shiny:
+              formData.sprites?.other?.home?.front_shiny ||
+              basePokemonData.sprites?.other?.home?.front_shiny,
+          },
         },
       },
     };
   }
 
-  return await getPokemonFormData(formItem.name || formItem.url);
+  return await getPokemonFormData(formItem.url || formItem.name);
 };
+
+/**
+ * Convierte nombres con sufijos técnicos a su nombre de especie limpio
+ * Convierte 'mimikyu-disguised' -> 'Mimikyu', 'eiscue-ice' -> 'Eiscue', 'morpeko-full-belly' -> 'Morpeko'
+ * Respeta nombres compuestos reales como 'ho-oh', 'porygon-z', 'jangmo-o', 'tapu-koko', 'type-null', 'mr-mime', 'iron-valiant'
+ */
+export const getCleanSpeciesName = (pokemon) => {
+  if (pokemon?.species?.name) {
+    const spName = pokemon.species.name;
+    const compoundExceptions = ['ho-oh', 'porygon-z', 'jangmo-o', 'hakamo-o', 'kommo-o', 'type-null', 'wo-chien', 'chien-pao', 'ting-lu', 'chi-yu'];
+    if (compoundExceptions.includes(spName.toLowerCase())) {
+      return spName;
+    }
+    return spName.replace(/-/g, ' ');
+  }
+  const nameStr = typeof pokemon === 'string' ? pokemon : pokemon?.name || '';
+  if (!nameStr) return '';
+  return nameStr
+    .replace(/-(disguised|ice|full-belly|normal|standard|incarnate|altered|aria|ordinary|shield|solo|overcast|plant|50|red-meteor|baile|midday|amped|single-strike|family-of-four|curly|two-segment|green-plumage|counterfeit|Hearthflame|Wellspring|Cornerstone)$/i, '');
+};
+
+export const formatCleanPokemonName = getCleanSpeciesName;
 
 let allPokemonCache = null;
 
@@ -722,19 +803,19 @@ export const getPokemonTypeRelations = async (types) => {
 
 /**
  * Obtiene la línea evolutiva completa ordenada (pre-evolución y evoluciones).
- * @param {string|number} pokemonIdOrName - ID o nombre del Pokémon
+ * @param {string|number|object} pokemonIdOrName - Objeto Pokémon, ID o nombre
  * @returns {Promise<string[]>} Array lineal con los nombres de la línea evolutiva
  */
 export const getPokemonEvolutions = async (pokemonIdOrName) => {
   try {
-    const cleanIdentifier = String(pokemonIdOrName).trim().toLowerCase();
-
-    // 1. Consultar species para obtener la URL de evolution_chain
-    const speciesResponse = await axios.get(`${BASE_URL}/pokemon-species/${cleanIdentifier}`);
-    const evolutionChainUrl = speciesResponse.data?.evolution_chain?.url;
+    const speciesData = await getPokemonSpecies(pokemonIdOrName);
+    const evolutionChainUrl = speciesData?.evolution_chain?.url;
 
     if (!evolutionChainUrl) {
-      return [cleanIdentifier];
+      const fallbackName = typeof pokemonIdOrName === 'object'
+        ? (pokemonIdOrName.name || pokemonIdOrName.id)
+        : String(pokemonIdOrName).split('-')[0].toLowerCase().trim();
+      return [fallbackName];
     }
 
     // 2. Consultar la cadena evolutiva

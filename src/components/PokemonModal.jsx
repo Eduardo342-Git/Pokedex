@@ -4,12 +4,12 @@ import {
   getPokemonTypeRelations,
   getPokemonSpeciesData,
   getAbilityName,
-  getPokemonFormData,
   getHighResArtwork,
   categorizeAndTranslateMoves,
   formatFormLabel,
-  getAllPokemonForms,
+  getAllPokemonVariants,
   resolvePokemonFormData,
+  getCleanSpeciesName,
 } from '../services/pokemonService';
 import { TYPE_COLORS, TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
 import { UI_TRANSLATIONS, TYPE_NAMES } from '../utils/translations';
@@ -246,12 +246,12 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
         }
         if (isMounted) setLoadingSpecies(true);
         const currentPrimaryType = currentPokemon.types?.[0]?.type?.name || 'normal';
-        const species = await getPokemonSpeciesData(currentPokemon.name, language, currentPrimaryType);
+        const species = await getPokemonSpeciesData(currentPokemon, language, currentPrimaryType);
 
         if (isMounted) {
           setSpeciesInfo(
             species || {
-              name: currentPokemon.name,
+              name: currentPokemon.species?.name || currentPokemon.name,
               description: '',
               genus: '',
               varieties: [],
@@ -261,7 +261,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
               isMythical: false,
             }
           );
-          const allForms = await getAllPokemonForms(currentPokemon, species);
+          const allForms = await getAllPokemonVariants(currentPokemon, species);
           setAvailableVarieties(allForms);
         }
       } catch (error) {
@@ -969,7 +969,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                     lineHeight: '1.2',
                   }}
                 >
-                  {displayPokemon.name}
+                  {getCleanSpeciesName(displayPokemon)}
                 </h2>
               </div>
 
@@ -992,7 +992,7 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                 >
                   {availableVarieties.map((v) => {
                     const isCurrent = (activeVariety?.name || currentPokemon.name) === v.name;
-                    const baseSpeciesName = speciesInfo?.name || currentPokemon.name;
+                    const baseSpeciesName = speciesInfo?.name || currentPokemon.species?.name || currentPokemon.name;
                     return (
                       <button
                         key={v.name}
@@ -1118,8 +1118,8 @@ function PokemonModal({ pokemon, onClose, onSelectPokemon, language = 'es' }) {
                   alt={displayPokemon.name}
                   onError={(e) => {
                     const fallback = isShiny
-                      ? displayPokemon.sprites?.front_shiny
-                      : displayPokemon.sprites?.front_default;
+                      ? displayPokemon.sprites?.other?.home?.front_shiny || displayPokemon.sprites?.front_shiny
+                      : displayPokemon.sprites?.other?.home?.front_default || displayPokemon.sprites?.front_default;
                     if (fallback && e.target.src !== fallback) {
                       e.target.src = fallback;
                     }

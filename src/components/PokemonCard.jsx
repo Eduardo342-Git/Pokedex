@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getPokemonDetails } from '../services/pokemonService';
+import { getPokemonDetails, getCleanSpeciesName } from '../services/pokemonService';
 import { TYPE_PASTEL_COLORS, TYPE_BORDER_COLORS } from '../utils/pokemonTypes';
 import { TYPE_NAMES } from '../utils/translations';
 import TypeDecorations from './TypeDecorations';
@@ -177,7 +177,7 @@ const PokemonCard = ({ pokemon, pokemonName, onClick, onSelect, language = 'es' 
             letterSpacing: '0.5px',
           }}
         >
-          {activePokemon.name}
+          {getCleanSpeciesName(activePokemon)}
         </span>
         <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
           {activePokemon.types?.map((t) => (
